@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package main
 
 import (
@@ -9,7 +6,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/hashicorp/terraform-provider-scaffolding-framework/internal/provider"
+	"terraform-provider-specifai/internal/provider"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -38,14 +35,17 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		// TODO: Update this string with the published name of your provider.
-		Address: "registry.terraform.io/hashicorp/scaffolding",
-		Debug:   debug,
-	}
+        // NOTE: This is not a typical Terraform Registry provider address,
+        // such as registry.terraform.io/hashicorp/specifai. This specific
+        // provider address is used in conjunction with a specific Terraform
+		// CLI configuration for manual development testing of this provider.
+        Address: "specifai.eu/terraform/specifai",
+        Debug:   debug,
+    }
 
-	err := providerserver.Serve(context.Background(), provider.New(version), opts)
+    err := providerserver.Serve(context.Background(), provider.New(version), opts)
 
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+    if err != nil {
+        log.Fatal(err.Error())
+    }
 }
