@@ -131,10 +131,13 @@ func (p *specifaiProvider) Configure(ctx context.Context, req provider.Configure
 func (p *specifaiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewQuicksightDashboardDataSource,
+		NewnormalizedDashboardDefinitionDataSource,
 	}
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *specifaiProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewQuicksightDashboardResource,
+	}
 }

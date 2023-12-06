@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/quicksight"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -21,16 +20,17 @@ var (
 	_ datasource.DataSourceWithConfigure = &quicksightDashboardDataSource{}
 )
 
-type quicksightDashboardModel struct {
-	DashboardId       types.String `tfsdk:"dashboard_id"`
-	AwsAccountId      types.String `tfsdk:"aws_account_id"`
-	Name              types.String `tfsdk:"name"`
-	Arn               types.String `tfsdk:"arn"`
-	CreatedTime       types.String `tfsdk:"created_time"`
-	LastUpdatedTime   types.String `tfsdk:"last_updated_time"`
-	LastPublishedTime types.String `tfsdk:"last_published_time"`
-	Status            types.String `tfsdk:"status"`
-	VersionNumber     types.Int64  `tfsdk:"version_number"`
+type quicksightDashboardDataSourceModel struct {
+	DashboardId        types.String `tfsdk:"dashboard_id"`
+	AwsAccountId       types.String `tfsdk:"aws_account_id"`
+	Name               types.String `tfsdk:"name"`
+	Arn                types.String `tfsdk:"arn"`
+	CreatedTime        types.String `tfsdk:"created_time"`
+	LastUpdatedTime    types.String `tfsdk:"last_updated_time"`
+	LastPublishedTime  types.String `tfsdk:"last_published_time"`
+	Status             types.String `tfsdk:"status"`
+	VersionNumber      types.Int64  `tfsdk:"version_number"`
+	VersionDescription types.String `tfsdk:"version_description"`
 }
 
 func NewQuicksightDashboardDataSource() datasource.DataSource {
@@ -82,13 +82,16 @@ func (d *quicksightDashboardDataSource) Schema(_ context.Context, _ datasource.S
 			"version_number": schema.Int64Attribute{
 				Computed: true,
 			},
+			"version_description": schema.StringAttribute{
+				Computed: true,
+			},
 		},
 	}
 }
 
 func (d *quicksightDashboardDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var config quicksightDashboardModel
-	var state quicksightDashboardModel
+	var config quicksightDashboardDataSourceModel
+	var state quicksightDashboardDataSourceModel
 
 	// Get the config
 	diags := req.Config.Get(ctx, &config)
@@ -97,32 +100,31 @@ func (d *quicksightDashboardDataSource) Read(ctx context.Context, req datasource
 		return
 	}
 
-	// Request parameters
-	describeDashboardInput := &quicksight.DescribeDashboardInput{}
-	describeDashboardInput.DashboardId = aws.String(config.DashboardId.ValueString())
-	describeDashboardInput.AwsAccountId = aws.String(d.providerData.AccountId)
+	// Account id fallback
+	awsAccountId := aws.String(d.providerData.AccountId)
 	if config.AwsAccountId.ValueString() != "" {
-		describeDashboardInput.AwsAccountId = aws.String(config.AwsAccountId.ValueString())
+		awsAccountId = aws.String(config.AwsAccountId.ValueString())
 	}
 
-	// Do request
+	// Get dashboard
 	tflog.Debug(ctx, fmt.Sprintf("DescribeDashboard: %v", config))
-	out, err := d.providerData.Quicksight.DescribeDashboard(ctx, describeDashboardInput)
+	dashboard, err := GetDashboard(ctx, d.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to read dashboard", err.Error())
 		return
 	}
 
 	// Set state
-	state.DashboardId = types.StringValue(*out.Dashboard.DashboardId)
-	state.AwsAccountId = types.StringValue(*describeDashboardInput.AwsAccountId)
-	state.Name = types.StringValue(*out.Dashboard.Name)
-	state.Arn = types.StringValue(*out.Dashboard.Arn)
-	state.CreatedTime = types.StringValue(out.Dashboard.CreatedTime.Format(time.RFC3339))
-	state.LastUpdatedTime = types.StringValue(out.Dashboard.LastUpdatedTime.Format(time.RFC3339))
-	state.LastPublishedTime = types.StringValue(out.Dashboard.LastPublishedTime.Format(time.RFC3339))
-	state.Status = types.StringValue(string(out.Dashboard.Version.Status))
-	state.VersionNumber = types.Int64Value(*out.Dashboard.Version.VersionNumber)
+	state.DashboardId = types.StringValue(*dashboard.DashboardId)
+	state.AwsAccountId = types.StringValue(*awsAccountId)
+	state.Name = MaybeStringValue(dashboard.Name)
+	state.Arn = types.StringValue(*dashboard.Arn)
+	state.CreatedTime = types.StringValue(dashboard.CreatedTime.Format(time.RFC3339))
+	state.LastUpdatedTime = types.StringValue(dashboard.LastUpdatedTime.Format(time.RFC3339))
+	state.LastPublishedTime = types.StringValue(dashboard.LastPublishedTime.Format(time.RFC3339))
+	state.Status = types.StringValue(string(dashboard.Version.Status))
+	state.VersionNumber = types.Int64Value(*dashboard.Version.VersionNumber)
+	state.VersionDescription = MaybeStringValue(dashboard.Version.Description)
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
