@@ -101,6 +101,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 			"definition": schema.StringAttribute{
 				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"permissions": schema.ListNestedAttribute{
 				Optional: true,
@@ -291,10 +294,35 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *quicksightDashboardResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	panic("Update not yet implemented for quicksightDashboardResource")
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *quicksightDashboardResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Retrieve values from the resource definition
+	var config quicksightDashboardResourceModel
+	diags := req.State.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Account id fallback
+	awsAccountId := aws.String(r.providerData.AccountId)
+	if config.AwsAccountId.ValueString() != "" {
+		awsAccountId = aws.String(config.AwsAccountId.ValueString())
+	}
+
+	// Delete the dashboard
+	deleteDashboardInput := &quicksight.DeleteDashboardInput{
+		DashboardId:  aws.String(config.DashboardId.ValueString()),
+		AwsAccountId: awsAccountId,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("DeleteDashboard: %v", deleteDashboardInput))
+	_, err := r.providerData.Quicksight.DeleteDashboard(ctx, deleteDashboardInput)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to delete dashboard", err.Error())
+	}
 }
 
 // Configure adds the provider configured client to the data source.
