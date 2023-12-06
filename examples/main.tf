@@ -16846,10 +16846,10 @@ EOT
 }
 
 resource "specifai_quicksight_dashboard" "test" {
-  dashboard_id = "terraform-provider-test-dashboard"
-  name = "Terraform Provider Test Dashboard"
+  dashboard_id        = "terraform-provider-test-dashboard"
+  name                = "Terraform Provider Test Dashboard"
   version_description = "..."
-  definition = data.specifai_normalized_dashboard_definition.test.normalized_definition
+  definition          = data.specifai_normalized_dashboard_definition.test.normalized_definition
   permissions = [
     {
       principal = "arn:aws:quicksight:eu-west-1:296896140035:user/default/quicksight_sso/marcel@meulemans.engineering",
