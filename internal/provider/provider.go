@@ -113,12 +113,13 @@ func (p *specifaiProvider) Configure(ctx context.Context, req provider.Configure
 	tflog.Debug(ctx, "Retrieving AWS account details")
 	out, err := providerData.Sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to get AWS account details", err.Error())
-		return
+		resp.Diagnostics.AddWarning("Failed to get AWS account details", err.Error())
+		providerData.AccountId = "123456789012"
+	} else {
+		providerData.AccountId = *out.Account
 	}
 
 	providerData.Region = cfg.Region
-	providerData.AccountId = *out.Account
 	tflog.Info(ctx, fmt.Sprintf("Specifai provider configured for AWS account %s in %s", providerData.AccountId, providerData.Region))
 
 	// Make the client available during DataSource and Resource type Configure
