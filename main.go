@@ -35,17 +35,17 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-        // NOTE: This is not a typical Terraform Registry provider address,
-        // such as registry.terraform.io/hashicorp/specifai. This specific
-        // provider address is used in conjunction with a specific Terraform
+		// NOTE: This is not a typical Terraform Registry provider address,
+		// such as registry.terraform.io/hashicorp/specifai. This specific
+		// provider address is used in conjunction with a specific Terraform
 		// CLI configuration for manual development testing of this provider.
-        Address: "specifai.eu/terraform/specifai",
-        Debug:   debug,
-    }
+		Address: "specifai.eu/terraform/specifai",
+		Debug:   debug,
+	}
 
-    err := providerserver.Serve(context.Background(), provider.New(version), opts)
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
 
-    if err != nil {
-        log.Fatal(err.Error())
-    }
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
