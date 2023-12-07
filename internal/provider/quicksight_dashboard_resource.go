@@ -384,13 +384,17 @@ func WarnForDefinitionDifferences(left []byte, right []byte, diags *diag.Diagnos
 	if diff, err := differ.Compare(left, right); err == nil {
 		if diff.Modified() {
 			var orig interface{}
-			DecodeJsonIntoStruct(left, &orig)
-			formatter := formatter.NewAsciiFormatter(orig, formatter.AsciiFormatterConfig{
-				ShowArrayIndex: false,
-				Coloring:       false,
-			})
-			diffString, _ := formatter.Format(diff)
-			diags.AddWarning("Definition outdated", fmt.Sprintf("The deployed definition differs from the configured definition:\n%s", diffString))
+			if err := DecodeJsonIntoStruct(left, &orig); err == nil {
+
+				formatter := formatter.NewAsciiFormatter(orig, formatter.AsciiFormatterConfig{
+					ShowArrayIndex: false,
+					Coloring:       false,
+				})
+				diffString, _ := formatter.Format(diff)
+				diags.AddWarning("Definition outdated", fmt.Sprintf("The deployed definition differs from the configured definition:\n%s", diffString))
+			} else {
+				diags.AddWarning("Definition diff failed", err.Error())
+			}
 		}
 	} else {
 		diags.AddWarning("Definition diff failed", err.Error())
