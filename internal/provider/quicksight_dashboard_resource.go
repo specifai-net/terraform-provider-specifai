@@ -190,19 +190,20 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	}
 
 	// Do request
-	tflog.Debug(ctx, fmt.Sprintf("CreateDashboard: %v", config))
-	_, err := r.providerData.Quicksight.CreateDashboard(ctx, createDashboardInput)
+	tflog.Trace(ctx, fmt.Sprintf("CreateDashboard: %v", config))
+	out, err := r.providerData.Quicksight.CreateDashboard(ctx, createDashboardInput)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create dashboard", err.Error())
 		return
 	}
+	tflog.Debug(ctx, fmt.Sprintf("CreateDashboard returned %d", out.Status))
 
 	// Wait until dashboard has been created
 	exp := backoff.NewExponentialBackOff()
 	exp.InitialInterval = 1 * time.Second
 	exp.Reset()
 	var dashboard *qstypes.Dashboard
-	for dashboard == nil || dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful {
+	for dashboard == nil || dashboard.Version.Status == qstypes.ResourceStatusCreationInProgress {
 		d, err := GetDashboard(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId)
 		if err != nil {
 			resp.Diagnostics.AddWarning("Failed to create dashboard", err.Error())
@@ -210,9 +211,31 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 		dashboard = d
 		if exp.GetElapsedTime() > 15*time.Minute {
 			resp.Diagnostics.AddError("Failed to create dashboard", "Timed out waiting for dashboard ceration to complete")
+			return
 		} else {
 			time.Sleep(exp.NextBackOff())
 		}
+	}
+
+	// Handle dashboard creation errors
+	if dashboard.Version.Status == qstypes.ResourceStatusCreationFailed {
+		// Emit creation errors
+		message := fmt.Sprintf("Dashboard creation failed due to %d problems", len(dashboard.Version.Errors))
+		for _, err := range dashboard.Version.Errors {
+			message += "\n"
+			message += *err.Message
+		}
+		resp.Diagnostics.AddError("Failed to create dashboard", message)
+
+		// Delete the failed dashboard
+		err := DeleteDashboard(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to delete dashboard", err.Error())
+		}
+
+		return
+	} else if dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful {
+		panic("Unexpected dashbopard status")
 	}
 
 	// Read back the dashboard into the state
@@ -314,12 +337,7 @@ func (r *quicksightDashboardResource) Delete(ctx context.Context, req resource.D
 	}
 
 	// Delete the dashboard
-	deleteDashboardInput := &quicksight.DeleteDashboardInput{
-		DashboardId:  aws.String(config.DashboardId.ValueString()),
-		AwsAccountId: awsAccountId,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("DeleteDashboard: %v", deleteDashboardInput))
-	_, err := r.providerData.Quicksight.DeleteDashboard(ctx, deleteDashboardInput)
+	err := DeleteDashboard(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete dashboard", err.Error())
 	}
