@@ -46,7 +46,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/quicksight v1.54.1
 	github.com/aws/aws-sdk-go-v2/service/sso v1.18.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.26.5
+	github.com/aws/aws-sdk-go-v2/service/sts v1.26.6
 	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
