@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -287,7 +288,14 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 	state = config
 	err := ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, &state)
 	if err != nil {
-		resp.Diagnostics.AddError("Unable to read dashboard", err.Error())
+		var notFoundError *NotFoundError
+		if errors.As(err, &notFoundError) {
+			resp.Diagnostics.AddWarning("Dashboard not found, removing from state", err.Error())
+			resp.State.RemoveResource(ctx)
+		} else {
+			resp.Diagnostics.AddError("Unable to read dashboard", err.Error())
+		}
+		return
 	}
 
 	// The definition we read back from quicksight may be slightly different

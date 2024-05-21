@@ -29,8 +29,8 @@ func GetDashboard(ctx context.Context, quicksightClient *quicksight.Client, dash
 	tflog.Trace(ctx, fmt.Sprintf("DescribeDashboard: %v", describeDashboardInput))
 	out, err := quicksightClient.DescribeDashboard(ctx, describeDashboardInput)
 	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboard returned: %d", out.Status))
-		return nil, err
+		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboard returned: %s", err))
+		return nil, &NotFoundError{}
 	} else if out == nil || out.Dashboard == nil {
 		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboard returned: %d", out.Status))
 		return nil, &NotFoundError{}
@@ -44,6 +44,8 @@ func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient 
 	dashboard, err := GetDashboard(ctx, quicksightClient, dashboardId, awsAccountId)
 	if err != nil {
 		return nil, nil, nil, err
+	} else if dashboard == nil {
+		return nil, nil, nil, nil
 	}
 
 	describeDashboardDefinitionInput := &quicksight.DescribeDashboardDefinitionInput{
@@ -59,7 +61,7 @@ func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient 
 	tflog.Trace(ctx, fmt.Sprintf("DescribeDashboardDefinition: %v", describeDashboardDefinitionInput))
 	out1, err := quicksightClient.DescribeDashboardDefinition(ctx, describeDashboardDefinitionInput)
 	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardDefinition returned: %d", out1.Status))
+		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardDefinition returned: %s", err))
 		return nil, nil, nil, err
 	} else if out1 == nil || out1.Definition == nil {
 		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardDefinition returned: %d", out1.Status))
@@ -70,7 +72,7 @@ func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient 
 	tflog.Trace(ctx, fmt.Sprintf("DescribeDashboardPermissions: %v", describeDashboardPermissionsInput))
 	out2, err := quicksightClient.DescribeDashboardPermissions(ctx, describeDashboardPermissionsInput)
 	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardPermissions returned: %d", out2.Status))
+		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardPermissions returned: %s", err))
 		return nil, nil, nil, err
 	} else if out2 == nil {
 		tflog.Warn(ctx, fmt.Sprintf("DescribeDashboardPermissions returned: %d", out2.Status))
@@ -90,7 +92,7 @@ func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, d
 	tflog.Trace(ctx, fmt.Sprintf("DeleteDashboard: %v", deleteDashboardInput))
 	out, err := quicksightClient.DeleteDashboard(ctx, deleteDashboardInput)
 	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("DeleteDashboard returned: %d", out.Status))
+		tflog.Warn(ctx, fmt.Sprintf("DeleteDashboard returned: %s", err))
 		return err
 	}
 
