@@ -4,9 +4,9 @@ import (
 	"context"
 	"flag"
 	"log"
+	"terraform-provider-specifai/internal/provider"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"terraform-provider-specifai/internal/provider"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -35,11 +35,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		// NOTE: This is not a typical Terraform Registry provider address,
-		// such as registry.terraform.io/hashicorp/specifai. This specific
-		// provider address is used in conjunction with a specific Terraform
-		// CLI configuration for manual development testing of this provider.
-		Address: "specifai.eu/terraform/specifai",
+		Address: "registry.terraform.io/specifai-net/specifai",
 		Debug:   debug,
 	}
 
