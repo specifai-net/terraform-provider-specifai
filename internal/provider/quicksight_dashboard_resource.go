@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -39,7 +40,6 @@ type quicksightDashboardResourcePermissionModel struct {
 	Actions   []types.String `tfsdk:"actions"`
 }
 
-// orderItemCoffeeModel maps coffee order item data.
 type quicksightDashboardResourceModel struct {
 	DashboardId        types.String                                 `tfsdk:"dashboard_id"`
 	AwsAccountId       types.String                                 `tfsdk:"aws_account_id"`
@@ -95,6 +95,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 2048),
 				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"arn": schema.StringAttribute{
 				Computed: true,
@@ -110,6 +113,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 				Optional: true,
 				Validators: []validator.List{
 					listvalidator.SizeAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
 				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -149,6 +155,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 				Required: true,
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 512),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 		},
