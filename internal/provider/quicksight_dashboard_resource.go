@@ -12,18 +12,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
-	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/yudai/gojsondiff"
 	"github.com/yudai/gojsondiff/formatter"
@@ -35,24 +31,18 @@ var (
 	_ resource.ResourceWithConfigure = &quicksightDashboardResource{}
 )
 
-type quicksightDashboardResourcePermissionModel struct {
-	Principal types.String   `tfsdk:"principal"`
-	Actions   []types.String `tfsdk:"actions"`
-}
-
 type quicksightDashboardResourceModel struct {
-	DashboardId        types.String                                 `tfsdk:"dashboard_id"`
-	AwsAccountId       types.String                                 `tfsdk:"aws_account_id"`
-	Name               types.String                                 `tfsdk:"name"`
-	Arn                types.String                                 `tfsdk:"arn"`
-	Definition         jsontypes.Normalized                         `tfsdk:"definition"`
-	Permissions        []quicksightDashboardResourcePermissionModel `tfsdk:"permissions"`
-	CreatedTime        types.String                                 `tfsdk:"created_time"`
-	LastUpdatedTime    types.String                                 `tfsdk:"last_updated_time"`
-	LastPublishedTime  types.String                                 `tfsdk:"last_published_time"`
-	Status             types.String                                 `tfsdk:"status"`
-	VersionNumber      types.Int64                                  `tfsdk:"version_number"`
-	VersionDescription types.String                                 `tfsdk:"version_description"`
+	DashboardId        types.String         `tfsdk:"dashboard_id"`
+	AwsAccountId       types.String         `tfsdk:"aws_account_id"`
+	Name               types.String         `tfsdk:"name"`
+	Arn                types.String         `tfsdk:"arn"`
+	Definition         jsontypes.Normalized `tfsdk:"definition"`
+	CreatedTime        types.String         `tfsdk:"created_time"`
+	LastUpdatedTime    types.String         `tfsdk:"last_updated_time"`
+	LastPublishedTime  types.String         `tfsdk:"last_published_time"`
+	Status             types.String         `tfsdk:"status"`
+	VersionNumber      types.Int64          `tfsdk:"version_number"`
+	VersionDescription types.String         `tfsdk:"version_description"`
 }
 
 // NewQuicksightDashboardResource is a helper function to simplify the provider implementation.
@@ -109,33 +99,6 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"permissions": schema.ListNestedAttribute{
-				Optional: true,
-				Validators: []validator.List{
-					listvalidator.SizeAtLeast(1),
-				},
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
-				},
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"principal": schema.StringAttribute{
-							Required: true,
-							Validators: []validator.String{
-								stringvalidator.LengthBetween(1, 256),
-							},
-						},
-						"actions": schema.SetAttribute{
-							Required: true,
-							Validators: []validator.Set{
-								setvalidator.SizeBetween(1, 16),
-								setvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1)),
-							},
-							ElementType: types.StringType,
-						},
-					},
-				},
-			},
 			"created_time": schema.StringAttribute{
 				Computed: true,
 			},
@@ -188,16 +151,6 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	} else {
 		resp.Diagnostics.AddError("Invalid definition", err.Error())
 	}
-	createDashboardInput.Permissions = make([]qstypes.ResourcePermission, len(config.Permissions))
-	for i, permission := range config.Permissions {
-		createDashboardInput.Permissions[i] = qstypes.ResourcePermission{
-			Principal: aws.String(permission.Principal.ValueString()),
-			Actions:   make([]string, len(permission.Actions)),
-		}
-		for j, action := range permission.Actions {
-			createDashboardInput.Permissions[i].Actions[j] = action.ValueString()
-		}
-	}
 
 	// Do request
 	tflog.Trace(ctx, fmt.Sprintf("CreateDashboard: %v", config))
@@ -245,14 +198,14 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 
 		return
 	} else if dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful {
-		panic("Unexpected dashbopard status")
+		panic("Unexpected dashboard status")
 	}
 
 	// Read back the dashboard into the state
 	var state quicksightDashboardResourceModel
 	err = ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId, &state)
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to create dashboard", err.Error())
+		resp.Diagnostics.AddError("Failed to read back dashboard", err.Error())
 	}
 
 	// Our definition may not match what was return from quicksight which
@@ -297,8 +250,7 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 	state = config
 	err := ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, &state)
 	if err != nil {
-		var notFoundError *NotFoundError
-		if errors.As(err, &notFoundError) {
+		if errors.As(err, &NOT_FOUND_ERROR) {
 			resp.Diagnostics.AddWarning("Dashboard not found, removing from state", err.Error())
 			resp.State.RemoveResource(ctx)
 		} else {
@@ -308,7 +260,7 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 	}
 
 	// The definition we read back from quicksight may be slightly different
-	// from the JSON that is confifgured but could be semantically the same.
+	// from the JSON that is configured but could be semantically the same.
 	// If this is the case we just return the configured JSON so we don't
 	// trigger a useless update. We also warn of any definition changes
 	// because our definition is out of date and needs to be updated.
@@ -379,8 +331,8 @@ func (d *quicksightDashboardResource) Configure(_ context.Context, req resource.
 }
 
 func ReadDashboardIntoResourceModel(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, resourceModel *quicksightDashboardResourceModel) error {
-	// Get the dashboard, definition and permissions
-	dashboard, definition, permissions, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId)
+	// Get the dashboard and definition
+	dashboard, definition, _, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId)
 	if err != nil {
 		return err
 	}
@@ -393,16 +345,6 @@ func ReadDashboardIntoResourceModel(ctx context.Context, quicksightClient *quick
 		resourceModel.Definition = jsontypes.NewNormalizedPointerValue(&json)
 	} else {
 		return err
-	}
-	resourceModel.Permissions = make([]quicksightDashboardResourcePermissionModel, len(permissions))
-	for i, permission := range permissions {
-		resourceModel.Permissions[i] = quicksightDashboardResourcePermissionModel{
-			Principal: types.StringValue(*permission.Principal),
-			Actions:   make([]basetypes.StringValue, len(permission.Actions)),
-		}
-		for j, action := range permission.Actions {
-			resourceModel.Permissions[i].Actions[j] = types.StringValue(action)
-		}
 	}
 	resourceModel.CreatedTime = types.StringValue(dashboard.CreatedTime.Format(time.RFC3339))
 	resourceModel.LastUpdatedTime = types.StringValue(dashboard.LastUpdatedTime.Format(time.RFC3339))
@@ -420,7 +362,6 @@ func WarnForDefinitionDifferences(left []byte, right []byte, diags *diag.Diagnos
 		if diff.Modified() {
 			var orig interface{}
 			if err := DecodeJsonIntoStruct(left, &orig); err == nil {
-
 				formatter := formatter.NewAsciiFormatter(orig, formatter.AsciiFormatterConfig{
 					ShowArrayIndex: false,
 					Coloring:       false,

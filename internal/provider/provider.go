@@ -140,5 +140,6 @@ func (p *specifaiProvider) DataSources(_ context.Context) []func() datasource.Da
 func (p *specifaiProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewQuicksightDashboardResource,
+		NewQuicksightDashboardPermissionResource,
 	}
 }

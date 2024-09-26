@@ -20,6 +20,8 @@ func (m *NotFoundError) Error() string {
 	return "not-found"
 }
 
+var NOT_FOUND_ERROR *NotFoundError
+
 func GetDashboard(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string) (*qstypes.Dashboard, error) {
 	describeDashboardInput := &quicksight.DescribeDashboardInput{
 		DashboardId:  dashboardId,
