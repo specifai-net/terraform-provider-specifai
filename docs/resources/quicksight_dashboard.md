@@ -25,7 +25,6 @@ description: |-
 ### Optional
 
 - `aws_account_id` (String)
-- `permissions` (Attributes List) (see [below for nested schema](#nestedatt--permissions))
 
 ### Read-Only
 
@@ -35,11 +34,3 @@ description: |-
 - `last_updated_time` (String)
 - `status` (String)
 - `version_number` (Number)
-
-<a id="nestedatt--permissions"></a>
-### Nested Schema for `permissions`
-
-Required:
-
-- `actions` (Set of String)
-- `principal` (String)

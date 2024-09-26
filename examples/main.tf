@@ -204,12 +204,12 @@ resource "specifai_quicksight_dashboard" "test" {
 }
 
 resource "specifai_quicksight_dashboard_permission" "test" {
-  dashboard_id  = "terraform-provider-test-dashboard"
-  principal     = "arn:aws:quicksight:eu-west-1:296896140035:user/default/quicksight_sso/marcel@meulemans.engineering"
-  actions       = [
-   "quicksight:DescribeDashboard",
-   "quicksight:ListDashboardVersions",
-   "quicksight:QueryDashboard"
+  dashboard_id = "terraform-provider-test-dashboard"
+  principal    = "arn:aws:quicksight:eu-west-1:296896140035:user/default/quicksight_sso/marcel@meulemans.engineering"
+  actions = [
+    "quicksight:DescribeDashboard",
+    "quicksight:ListDashboardVersions",
+    "quicksight:QueryDashboard"
   ]
 }
 
