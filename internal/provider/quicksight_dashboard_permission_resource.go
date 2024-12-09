@@ -140,7 +140,7 @@ func (r *quicksightDashboardPermissionResource) Read(ctx context.Context, req re
 	err := ReadDashboardPermissionsIntoResourceModel(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), aws.String(config.Principal.ValueString()), awsAccountId, &state)
 	if err != nil {
 		if errors.As(err, &NOT_FOUND_ERROR) {
-			resp.Diagnostics.AddWarning("Dashboard not found, removing from state", err.Error())
+			resp.Diagnostics.AddWarning("Dashboard permissions not found, removing from state", err.Error())
 			resp.State.RemoveResource(ctx)
 		} else {
 			resp.Diagnostics.AddError("Unable to read dashboard", err.Error())
