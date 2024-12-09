@@ -172,8 +172,26 @@ func DefinitionToNormalizedJson(definition *qstypes.DashboardVersionDefinition) 
 
 func NormalizeDefinition(definition *qstypes.DashboardVersionDefinition) {
 	if definition != nil {
-		// Sort columns configurations
-		if len(definition.ColumnConfigurations) > 0 {
+		// Here we sort various array field so we can compare dashboard
+		// definitions in a stable manner.
+
+		if len(definition.DataSetIdentifierDeclarations) > 1 {
+			slices.SortFunc(definition.DataSetIdentifierDeclarations, func(a, b qstypes.DataSetIdentifierDeclaration) int {
+				return SafeStringCompare(a.Identifier, b.Identifier)
+			})
+		}
+
+		if len(definition.CalculatedFields) > 1 {
+			slices.SortFunc(definition.CalculatedFields, func(a, b qstypes.CalculatedField) int {
+				if n := SafeStringCompare(a.DataSetIdentifier, b.DataSetIdentifier); n != 0 {
+					return n
+				} else {
+					return SafeStringCompare(a.Name, b.Name)
+				}
+			})
+		}
+
+		if len(definition.ColumnConfigurations) > 1 {
 			slices.SortFunc(definition.ColumnConfigurations, func(a, b qstypes.ColumnConfiguration) int {
 				if n := SafeStringCompare(a.Column.DataSetIdentifier, b.Column.DataSetIdentifier); n != 0 {
 					return n
@@ -182,6 +200,20 @@ func NormalizeDefinition(definition *qstypes.DashboardVersionDefinition) {
 				}
 			})
 		}
+
+		if len(definition.FilterGroups) > 1 {
+			slices.SortFunc(definition.FilterGroups, func(a, b qstypes.FilterGroup) int {
+				return SafeStringCompare(a.FilterGroupId, b.FilterGroupId)
+			})
+		}
+
+		if len(definition.Sheets) > 1 {
+			slices.SortFunc(definition.Sheets, func(a, b qstypes.SheetDefinition) int {
+				return SafeStringCompare(a.SheetId, b.SheetId)
+			})
+		}
+
+		// TODO: ParameterDeclarations and StaticFiles
 	}
 }
 
