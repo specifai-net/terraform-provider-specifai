@@ -6,7 +6,7 @@ import (
 )
 
 func TestJsonToNormalizedDefinitionJson(t *testing.T) {
-    inputString := `
+	inputString := `
 {
   "Sheets": [
     {
@@ -21,7 +21,7 @@ func TestJsonToNormalizedDefinitionJson(t *testing.T) {
     {
       "ContentType": "INTERACTIVE",
       "Layouts": [],
-      "Name": "Risico-adres",
+      "Name": "Risico-address",
       "ParameterControls": [],
       "SheetControlLayouts": [],
       "SheetId": "ed10dba4-fc18-4d50-a094-687a1bfcbb14",
@@ -86,17 +86,17 @@ func TestJsonToNormalizedDefinitionJson(t *testing.T) {
   ]
 }
 `
-    bytes := []byte(inputString)
-    definition, error := JsonToNormalizedDefinition(bytes)
-    if error != nil {
-        t.Errorf(`Parsing return error %#q`, error)
-    }
-    var sheetNames []string
-    for _, sheet := range definition.Sheets {
-        sheetNames = append(sheetNames, *sheet.Name)
-    }
-    expectedNames := []string {"KPI", "Risico-adres", "Medewerkers", "Prestatiedashboard", " Diensten", "Opbrengsten alarmopvolgingen", "Barcodes", "(Demo) Bezetting"}
-    if !reflect.DeepEqual(sheetNames, expectedNames) {
-        t.Errorf(`Mismatch sheets order, expected %v get %v`, expectedNames, sheetNames)
-    }
+	bytes := []byte(inputString)
+	definition, err := JsonToNormalizedDefinition(bytes)
+	if err != nil {
+		t.Errorf(`Parsing return error %#q`, err)
+	}
+	var sheetNames []string
+	for _, sheet := range definition.Sheets {
+		sheetNames = append(sheetNames, *sheet.Name)
+	}
+	expectedNames := []string{"KPI", "Risico-address", "Medewerkers", "Prestatiedashboard", " Diensten", "Opbrengsten alarmopvolgingen", "Barcodes", "(Demo) Bezetting"}
+	if !reflect.DeepEqual(sheetNames, expectedNames) {
+		t.Errorf(`Mismatch sheets order, expected %v get %v`, expectedNames, sheetNames)
+	}
 }
