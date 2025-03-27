@@ -207,12 +207,6 @@ func NormalizeDefinition(definition *qstypes.DashboardVersionDefinition) {
 			})
 		}
 
-		if len(definition.Sheets) > 1 {
-			slices.SortFunc(definition.Sheets, func(a, b qstypes.SheetDefinition) int {
-				return SafeStringCompare(a.SheetId, b.SheetId)
-			})
-		}
-
 		// TODO: ParameterDeclarations and StaticFiles
 	}
 }

@@ -1,6 +1,6 @@
 # Terraform Provider Specifai
 
-This customer terraform provider contains a few data sources and resources that we can easily deploy using existing prodivers
+This customer terraform provider contains a few data sources and resources that we can easily deploy using existing providers
 
 ## Requirements
 
@@ -22,7 +22,6 @@ go install
 ```terraform
 provider_installation {
   dev_overrides {
-    "registry.terraform.io/hashicorp/aws" = "/Users/mmeulemans/go/bin"
     "specifai.eu/terraform/specifai" = "/Users/mmeulemans/go/bin"
   }
   direct {
@@ -51,3 +50,10 @@ provider "specifai" {
 ## Provider documentation
 
 See the [provider documentation](docs/index.md) for configuration options, data source and resources.
+
+## Running unit tests
+
+Execute command
+```bash
+go test ./internal/provider
+```
