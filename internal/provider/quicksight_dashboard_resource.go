@@ -151,6 +151,7 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	} else {
 		resp.Diagnostics.AddError("Invalid definition", err.Error())
 	}
+	createDashboardInput.ValidationStrategy = &qstypes.ValidationStrategy{Mode: qstypes.ValidationStrategyModeLenient}
 
 	// Do request
 	tflog.Trace(ctx, fmt.Sprintf("CreateDashboard: %v", config))
