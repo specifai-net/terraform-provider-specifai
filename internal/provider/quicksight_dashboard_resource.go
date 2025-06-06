@@ -153,6 +153,45 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	}
 	createDashboardInput.ValidationStrategy = &qstypes.ValidationStrategy{Mode: qstypes.ValidationStrategyModeLenient}
 
+	// Set hard-coded default dashboard publish options
+	createDashboardInput.DashboardPublishOptions = &qstypes.DashboardPublishOptions{
+		AdHocFilteringOption: &qstypes.AdHocFilteringOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+		},
+		ExportToCSVOption: &qstypes.ExportToCSVOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		SheetControlsOption: &qstypes.SheetControlsOption{
+			VisibilityState: qstypes.DashboardUIStateCollapsed,
+		},
+		VisualPublishOptions: &qstypes.DashboardVisualPublishOptions{
+			ExportHiddenFieldsOption: &qstypes.ExportHiddenFieldsOption{
+				AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+			},
+		},
+		SheetLayoutElementMaximizationOption: &qstypes.SheetLayoutElementMaximizationOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		VisualMenuOption: &qstypes.VisualMenuOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		VisualAxisSortOption: &qstypes.VisualAxisSortOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		ExportWithHiddenFieldsOption: &qstypes.ExportWithHiddenFieldsOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+		},
+		DataPointDrillUpDownOption: &qstypes.DataPointDrillUpDownOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		DataPointMenuLabelOption: &qstypes.DataPointMenuLabelOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+		DataPointTooltipOption: &qstypes.DataPointTooltipOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+		},
+	}
+
 	// Do request
 	tflog.Trace(ctx, fmt.Sprintf("CreateDashboard: %v", config))
 	out, err := r.providerData.Quicksight.CreateDashboard(ctx, createDashboardInput)
