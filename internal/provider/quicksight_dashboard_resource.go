@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/quicksight"
 	qstypes "github.com/aws/aws-sdk-go-v2/service/quicksight/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -55,6 +55,45 @@ type quicksightDashboardResource struct {
 	providerData *specifaiProviderData
 }
 
+// Our hard-coded default dashboard publish options.
+var dashboardPublishOptions = &qstypes.DashboardPublishOptions{
+	AdHocFilteringOption: &qstypes.AdHocFilteringOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+	},
+	ExportToCSVOption: &qstypes.ExportToCSVOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	SheetControlsOption: &qstypes.SheetControlsOption{
+		VisibilityState: qstypes.DashboardUIStateCollapsed,
+	},
+	VisualPublishOptions: &qstypes.DashboardVisualPublishOptions{
+		ExportHiddenFieldsOption: &qstypes.ExportHiddenFieldsOption{
+			AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+		},
+	},
+	SheetLayoutElementMaximizationOption: &qstypes.SheetLayoutElementMaximizationOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	VisualMenuOption: &qstypes.VisualMenuOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	VisualAxisSortOption: &qstypes.VisualAxisSortOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	ExportWithHiddenFieldsOption: &qstypes.ExportWithHiddenFieldsOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
+	},
+	DataPointDrillUpDownOption: &qstypes.DataPointDrillUpDownOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	DataPointMenuLabelOption: &qstypes.DataPointMenuLabelOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+	DataPointTooltipOption: &qstypes.DataPointTooltipOption{
+		AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
+	},
+}
+
 // Metadata returns the resource type name.
 func (r *quicksightDashboardResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_quicksight_dashboard"
@@ -85,9 +124,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 2048),
 				},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
+				// PlanModifiers: []planmodifier.String{
+				// 	stringplanmodifier.RequiresReplace(),
+				// },
 			},
 			"arn": schema.StringAttribute{
 				Computed: true,
@@ -95,9 +134,9 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 			"definition": schema.StringAttribute{
 				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
+				// PlanModifiers: []planmodifier.String{
+				// 	stringplanmodifier.RequiresReplace(),
+				// },
 			},
 			"created_time": schema.StringAttribute{
 				Computed: true,
@@ -152,45 +191,7 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 		resp.Diagnostics.AddError("Invalid definition", err.Error())
 	}
 	createDashboardInput.ValidationStrategy = &qstypes.ValidationStrategy{Mode: qstypes.ValidationStrategyModeLenient}
-
-	// Set hard-coded default dashboard publish options
-	createDashboardInput.DashboardPublishOptions = &qstypes.DashboardPublishOptions{
-		AdHocFilteringOption: &qstypes.AdHocFilteringOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
-		},
-		ExportToCSVOption: &qstypes.ExportToCSVOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		SheetControlsOption: &qstypes.SheetControlsOption{
-			VisibilityState: qstypes.DashboardUIStateCollapsed,
-		},
-		VisualPublishOptions: &qstypes.DashboardVisualPublishOptions{
-			ExportHiddenFieldsOption: &qstypes.ExportHiddenFieldsOption{
-				AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
-			},
-		},
-		SheetLayoutElementMaximizationOption: &qstypes.SheetLayoutElementMaximizationOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		VisualMenuOption: &qstypes.VisualMenuOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		VisualAxisSortOption: &qstypes.VisualAxisSortOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		ExportWithHiddenFieldsOption: &qstypes.ExportWithHiddenFieldsOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorDisabled,
-		},
-		DataPointDrillUpDownOption: &qstypes.DataPointDrillUpDownOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		DataPointMenuLabelOption: &qstypes.DataPointMenuLabelOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-		DataPointTooltipOption: &qstypes.DataPointTooltipOption{
-			AvailabilityStatus: qstypes.DashboardBehaviorEnabled,
-		},
-	}
+	createDashboardInput.DashboardPublishOptions = dashboardPublishOptions
 
 	// Do request
 	tflog.Trace(ctx, fmt.Sprintf("CreateDashboard: %v", config))
@@ -202,22 +203,10 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	tflog.Debug(ctx, fmt.Sprintf("CreateDashboard returned %d", out.Status))
 
 	// Wait until dashboard has been created
-	exp := backoff.NewExponentialBackOff()
-	exp.InitialInterval = 1 * time.Second
-	exp.Reset()
-	var dashboard *qstypes.Dashboard
-	for dashboard == nil || dashboard.Version.Status == qstypes.ResourceStatusCreationInProgress {
-		d, err := GetDashboard(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId)
-		if err != nil {
-			resp.Diagnostics.AddWarning("Failed to create dashboard", err.Error())
-		}
-		dashboard = d
-		if exp.GetElapsedTime() > 15*time.Minute {
-			resp.Diagnostics.AddError("Failed to create dashboard", "Timed out waiting for dashboard ceration to complete")
-			return
-		} else {
-			time.Sleep(exp.NextBackOff())
-		}
+	dashboard, err := WaitForDashboardCreation(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId, nil)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create dashboard", err.Error())
+		return
 	}
 
 	// Handle dashboard creation errors
@@ -231,7 +220,7 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 		resp.Diagnostics.AddError("Failed to create dashboard", message)
 
 		// Delete the failed dashboard
-		err := DeleteDashboard(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId)
+		err := DeleteDashboard(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId, nil)
 		if err != nil {
 			resp.Diagnostics.AddError("Failed to delete dashboard", err.Error())
 		}
@@ -243,7 +232,7 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 
 	// Read back the dashboard into the state
 	var state quicksightDashboardResourceModel
-	err = ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId, &state)
+	err = ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, createDashboardInput.DashboardId, createDashboardInput.AwsAccountId, nil, &state)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to read back dashboard", err.Error())
 	}
@@ -251,8 +240,8 @@ func (r *quicksightDashboardResource) Create(ctx context.Context, req resource.C
 	// Our definition may not match what was return from quicksight which
 	// generally means our definition is out of date and needs to be updated.
 	// Here we compare the two and emit some diagnostic warnings when there are
-	// differences. We can't really fail as this will impact onboarding new
-	// customers.
+	// differences. This is not a problem, just a trigger to update our
+	// definition.
 	WarnForDefinitionDifferences([]byte(*config.Definition.ValueStringPointer()), []byte(*state.Definition.ValueStringPointer()), &resp.Diagnostics)
 
 	// Set the state definition back to the original configured string because
@@ -288,7 +277,7 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 
 	// Read back the dashboard into the state
 	state = config
-	err := ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, &state)
+	err := ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, nil, &state)
 	if err != nil {
 		if errors.As(err, &NOT_FOUND_ERROR) {
 			resp.Diagnostics.AddWarning("Dashboard not found, removing from state", err.Error())
@@ -326,7 +315,151 @@ func (r *quicksightDashboardResource) Read(ctx context.Context, req resource.Rea
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *quicksightDashboardResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	panic("Update not yet implemented for quicksightDashboardResource")
+	// Retrieve values from the resource definition
+	var config quicksightDashboardResourceModel
+	diags := req.Plan.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Extract the current definition state so we can check after the update if
+	// something actually changed or that our definition/sdk is just slightly
+	// out of date comapred to quicksight. We can detect this by doing the
+	// update and then comparing the "updated" definition to this.
+	var beforeState quicksightDashboardResourceModel
+	diags = req.State.Get(ctx, &beforeState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Request parameters
+	updateDashboardInput := &quicksight.UpdateDashboardInput{}
+	updateDashboardInput.DashboardId = aws.String(config.DashboardId.ValueString())
+	updateDashboardInput.AwsAccountId = aws.String(r.providerData.AccountId)
+	if config.AwsAccountId.ValueString() != "" {
+		updateDashboardInput.AwsAccountId = aws.String(config.AwsAccountId.ValueString())
+	}
+	updateDashboardInput.Name = aws.String(config.Name.ValueString())
+	updateDashboardInput.VersionDescription = aws.String((config.VersionDescription.ValueString()))
+	if definition, err := JsonToNormalizedDefinition([]byte(config.Definition.ValueString())); err == nil {
+		updateDashboardInput.Definition = &definition
+	} else {
+		resp.Diagnostics.AddError("Invalid definition", err.Error())
+	}
+	updateDashboardInput.ValidationStrategy = &qstypes.ValidationStrategy{Mode: qstypes.ValidationStrategyModeLenient}
+	updateDashboardInput.DashboardPublishOptions = dashboardPublishOptions
+
+	// Do update request
+	tflog.Trace(ctx, fmt.Sprintf("UpdateDashboard: %v", config))
+	out, err := r.providerData.Quicksight.UpdateDashboard(ctx, updateDashboardInput)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update dashboard", err.Error())
+		return
+	}
+	tflog.Debug(ctx, fmt.Sprintf("UpdateDashboard returned %d", out.Status))
+
+	// Update does not return the version number so we need to find it via list
+	// dashboard versions.
+	version, err := FindDashboardVersion(ctx, r.providerData.Quicksight, updateDashboardInput.DashboardId, updateDashboardInput.AwsAccountId, out.VersionArn)
+	if err != nil {
+		// Fail to find the version which should not happen, but if we do reach
+		// here we are left with a version that we can't delete. And we also
+		// can't continue.
+		resp.Diagnostics.AddError("Failed to find dashboard version", err.Error())
+		return
+	}
+
+	// Wait until dashboard has been created
+	dashboard, err := WaitForDashboardCreation(ctx, r.providerData.Quicksight, updateDashboardInput.DashboardId, updateDashboardInput.AwsAccountId, version.VersionNumber)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update dashboard", err.Error())
+		return
+	}
+
+	// Update failed, remove the broken version and exit.
+	if dashboard.Version.Status == qstypes.ResourceStatusCreationFailed {
+		// Emit update errors
+		message := fmt.Sprintf("Dashboard update failed due to %d problems", len(dashboard.Version.Errors))
+		for _, err := range dashboard.Version.Errors {
+			message += "\n"
+			message += *err.Message
+		}
+		resp.Diagnostics.AddError("Failed to update dashboard", message)
+
+		// Delete the failed dashboard
+		err := DeleteDashboard(ctx, r.providerData.Quicksight, updateDashboardInput.DashboardId, updateDashboardInput.AwsAccountId, dashboard.Version.VersionNumber)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to delete dashboard version", err.Error())
+		}
+
+		return
+	} else if dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful {
+		panic("Unexpected dashboard status")
+	}
+
+	// Read back the dashboard into the afterState
+	var afterState quicksightDashboardResourceModel
+	err = ReadDashboardIntoResourceModel(ctx, r.providerData.Quicksight, updateDashboardInput.DashboardId, updateDashboardInput.AwsAccountId, version.VersionNumber, &afterState)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read back dashboard", err.Error())
+	}
+
+	// Check if something actually changed before updating the published version.
+	var nameChanged = strings.Compare(beforeState.Name.String(), afterState.Name.String()) != 0
+	var definitionChanged = strings.Compare(beforeState.Definition.String(), afterState.Definition.String()) != 0
+	var versionDescriptionChanged = strings.Compare(beforeState.VersionDescription.String(), afterState.VersionDescription.String()) != 0
+
+	// Here we compare the before and after state of the dashboard and if they
+	// are the same (because our definition and/or sdk do not exactly match what
+	// quicksight currently returns) we skip updating the published version and
+	// delete the updated version.
+	if nameChanged || definitionChanged || versionDescriptionChanged {
+		// Update succeeded, now we set it to the published version
+		updateDashboardPublishedVersionInput := &quicksight.UpdateDashboardPublishedVersionInput{}
+		updateDashboardPublishedVersionInput.DashboardId = aws.String(config.DashboardId.ValueString())
+		updateDashboardPublishedVersionInput.AwsAccountId = aws.String(r.providerData.AccountId)
+		updateDashboardPublishedVersionInput.VersionNumber = version.VersionNumber
+		tflog.Trace(ctx, fmt.Sprintf("UpdateDashboardPublishedVersion: %v", config))
+		out2, err := r.providerData.Quicksight.UpdateDashboardPublishedVersion(ctx, updateDashboardPublishedVersionInput)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to update dashboard published version", err.Error())
+			return
+		}
+		tflog.Debug(ctx, fmt.Sprintf("UpdateDashboardPublishedVersion returned %d", out2.Status))
+	} else {
+		// If we reach here, our "update" did not actually update anything so we
+		// skip the publish as it won't change anything and this way we keep the
+		// dashboard more stable.
+		tflog.Info(ctx, "Skipping dashboard publish, there aren't actually any changes")
+
+		//  Delete the unchanged dashboard
+		err := DeleteDashboard(ctx, r.providerData.Quicksight, updateDashboardInput.DashboardId, updateDashboardInput.AwsAccountId, version.VersionNumber)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to delete dashboard version", err.Error())
+		}
+
+		// The cause for the non-update is probably that our definition may not
+		// match what was returned from quicksight which generally means our
+		// definition is out of date and needs to be updated. Here we compare
+		// the two and emit some diagnostic warnings when there are differences.
+		// This is not a problem, just a trigger to update our definition.
+		WarnForDefinitionDifferences([]byte(*config.Definition.ValueStringPointer()), []byte(*afterState.Definition.ValueStringPointer()), &resp.Diagnostics)
+	}
+
+	// Set the state definition back to the original configured string because
+	// this is what terraform requires.
+	//
+	// See:
+	// https://developer.hashicorp.com/terraform/plugin/framework/resources/plan-modification#terraform-data-consistency-rules
+	afterState.Definition = config.Definition
+
+	diags = resp.State.Set(ctx, &afterState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
@@ -346,7 +479,7 @@ func (r *quicksightDashboardResource) Delete(ctx context.Context, req resource.D
 	}
 
 	// Delete the dashboard
-	err := DeleteDashboard(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId)
+	err := DeleteDashboard(ctx, r.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete dashboard", err.Error())
 	}
@@ -370,9 +503,9 @@ func (d *quicksightDashboardResource) Configure(_ context.Context, req resource.
 	d.providerData = &specifaiProviderData
 }
 
-func ReadDashboardIntoResourceModel(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, resourceModel *quicksightDashboardResourceModel) error {
+func ReadDashboardIntoResourceModel(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64, resourceModel *quicksightDashboardResourceModel) error {
 	// Get the dashboard and definition
-	dashboard, definition, _, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId)
+	dashboard, definition, _, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId, versionNumber)
 	if err != nil {
 		return err
 	}
@@ -402,12 +535,15 @@ func WarnForDefinitionDifferences(left []byte, right []byte, diags *diag.Diagnos
 		if diff.Modified() {
 			var orig interface{}
 			if err := DecodeJsonIntoStruct(left, &orig); err == nil {
+				// Unfortunately this formatter does not have an option the
+				// limit the number of unchanged lines around the changes which
+				// means this output is very verbose.
 				formatter := formatter.NewAsciiFormatter(orig, formatter.AsciiFormatterConfig{
 					ShowArrayIndex: false,
 					Coloring:       false,
 				})
 				diffString, _ := formatter.Format(diff)
-				diags.AddWarning("Definition outdated", fmt.Sprintf("The deployed definition differs from the configured definition:\n%s", diffString))
+				diags.AddWarning("Definition outdated", fmt.Sprintf("The deployed definition differs from the configured definition. This means that after deploying quicksight returned a different definition that we gave to quicksight. This means that either our stored definition is outdated or that the quicksight sdk used by this provider is outdated.\n%s", diffString))
 			} else {
 				diags.AddWarning("Definition diff failed", err.Error())
 			}

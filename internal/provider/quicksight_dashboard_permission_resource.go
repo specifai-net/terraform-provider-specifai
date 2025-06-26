@@ -303,7 +303,7 @@ func FindPermissionForPrinciple(permissions []qstypes.ResourcePermission, princi
 
 func ReadDashboardPermissionsIntoResourceModel(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, principal *string, awsAccountId *string, resourceModel *quicksightDashboardPermissionResourceModel) error {
 	// Get the dashboard, definition and permissions
-	_, _, permissions, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId)
+	_, _, permissions, err := GetDashboardDefinitionAndPermissions(ctx, quicksightClient, dashboardId, awsAccountId, nil)
 	if err != nil {
 		return err
 	}

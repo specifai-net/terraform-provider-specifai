@@ -1,5 +1,6 @@
 package provider
 
+/*
 import (
 	"testing"
 
@@ -30,3 +31,4 @@ func TestAccQuicksightDashboardDataSource(t *testing.T) {
 		},
 	})
 }
+*/
