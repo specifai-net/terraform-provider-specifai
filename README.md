@@ -22,7 +22,7 @@ go install
 ```terraform
 provider_installation {
   dev_overrides {
-    "specifai.eu/terraform/specifai" = "/Users/mmeulemans/go/bin"
+    "specifai-net/specifai" = "/Users/mmeulemans/go/bin"
   }
   direct {
   }
@@ -37,7 +37,7 @@ Add the provider to your terraform config:
 terraform {
   required_providers {
     specifai = {
-      source = "specifai.eu/terraform/specifai"
+      source = "specifai-net/specifai"
     }
   }
 }
@@ -54,6 +54,11 @@ See the [provider documentation](docs/index.md) for configuration options, data 
 ## Running unit tests
 
 Execute command
+
 ```bash
 go test ./internal/provider
 ```
+
+## Debugging
+
+Run the "Debug Terraform Provider" launch task. This will build with compiler optimization disabled and then launch the provider. The output in the `DEBUG CONSOLE` will show an environment variable that needs to be set when you run `terraform apply`. More details can be found [here](https://developer.hashicorp.com/terraform/plugin/debugging).

@@ -108,7 +108,7 @@ func (d *quicksightDashboardDataSource) Read(ctx context.Context, req datasource
 
 	// Get dashboard
 	tflog.Debug(ctx, fmt.Sprintf("DescribeDashboard: %v", config))
-	dashboard, err := GetDashboard(ctx, d.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId)
+	dashboard, err := GetDashboard(ctx, d.providerData.Quicksight, aws.String(config.DashboardId.ValueString()), awsAccountId, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to read dashboard", err.Error())
 		return

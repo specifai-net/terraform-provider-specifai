@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/quicksight"
 	qstypes "github.com/aws/aws-sdk-go-v2/service/quicksight/types"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -22,10 +25,17 @@ func (m *NotFoundError) Error() string {
 
 var NOT_FOUND_ERROR *NotFoundError
 
-func GetDashboard(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string) (*qstypes.Dashboard, error) {
+type TimeoutError struct{}
+
+func (m *TimeoutError) Error() string {
+	return "timeout"
+}
+
+func GetDashboard(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) (*qstypes.Dashboard, error) {
 	describeDashboardInput := &quicksight.DescribeDashboardInput{
-		DashboardId:  dashboardId,
-		AwsAccountId: awsAccountId,
+		DashboardId:   dashboardId,
+		AwsAccountId:  awsAccountId,
+		VersionNumber: versionNumber,
 	}
 
 	tflog.Trace(ctx, fmt.Sprintf("DescribeDashboard: %v", describeDashboardInput))
@@ -42,8 +52,47 @@ func GetDashboard(ctx context.Context, quicksightClient *quicksight.Client, dash
 	return out.Dashboard, nil
 }
 
-func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string) (*qstypes.Dashboard, *qstypes.DashboardVersionDefinition, []qstypes.ResourcePermission, error) {
-	dashboard, err := GetDashboard(ctx, quicksightClient, dashboardId, awsAccountId)
+func FindDashboardVersion(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionArn *string) (*qstypes.DashboardVersionSummary, error) {
+	var maxResults int32 = 100
+	var nextToken *string
+	for {
+		listDashboardVersionsInput := &quicksight.ListDashboardVersionsInput{
+			DashboardId:  dashboardId,
+			AwsAccountId: awsAccountId,
+			MaxResults:   &maxResults,
+			NextToken:    nextToken,
+		}
+
+		tflog.Trace(ctx, fmt.Sprintf("ListDashboardVersions: %v", listDashboardVersionsInput))
+		out, err := quicksightClient.ListDashboardVersions(ctx, listDashboardVersionsInput)
+		if err != nil {
+			tflog.Warn(ctx, fmt.Sprintf("ListDashboardVersions returned: %s", err))
+			return nil, &NotFoundError{}
+		} else if out == nil || out.DashboardVersionSummaryList == nil {
+			tflog.Warn(ctx, fmt.Sprintf("ListDashboardVersions returned: %d", out.Status))
+			return nil, &NotFoundError{}
+		}
+
+		for _, element := range out.DashboardVersionSummaryList {
+			if strings.Compare(*element.Arn, *versionArn) == 0 {
+				return &element, nil
+			}
+		}
+
+		if out.NextToken != nil {
+			nextToken = out.NextToken
+		} else {
+			break
+		}
+	}
+
+	tflog.Debug(ctx, fmt.Sprintf("DashboardVersion not found: %s", *versionArn))
+
+	return nil, &NotFoundError{}
+}
+
+func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) (*qstypes.Dashboard, *qstypes.DashboardVersionDefinition, []qstypes.ResourcePermission, error) {
+	dashboard, err := GetDashboard(ctx, quicksightClient, dashboardId, awsAccountId, versionNumber)
 	if err != nil {
 		return nil, nil, nil, err
 	} else if dashboard == nil {
@@ -51,8 +100,9 @@ func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient 
 	}
 
 	describeDashboardDefinitionInput := &quicksight.DescribeDashboardDefinitionInput{
-		DashboardId:  dashboardId,
-		AwsAccountId: awsAccountId,
+		DashboardId:   dashboardId,
+		AwsAccountId:  awsAccountId,
+		VersionNumber: versionNumber,
 	}
 
 	describeDashboardPermissionsInput := &quicksight.DescribeDashboardPermissionsInput{
@@ -85,10 +135,11 @@ func GetDashboardDefinitionAndPermissions(ctx context.Context, quicksightClient 
 	return dashboard, out1.Definition, out2.Permissions, nil
 }
 
-func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string) error {
+func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) error {
 	deleteDashboardInput := &quicksight.DeleteDashboardInput{
-		DashboardId:  dashboardId,
-		AwsAccountId: awsAccountId,
+		DashboardId:   dashboardId,
+		AwsAccountId:  awsAccountId,
+		VersionNumber: versionNumber,
 	}
 
 	tflog.Trace(ctx, fmt.Sprintf("DeleteDashboard: %v", deleteDashboardInput))
@@ -100,6 +151,32 @@ func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, d
 
 	tflog.Debug(ctx, fmt.Sprintf("DeleteDashboard returned: %d", out.Status))
 	return nil
+}
+
+func WaitForDashboardCreation(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) (*qstypes.Dashboard, error) {
+	exp := backoff.NewExponentialBackOff()
+	exp.InitialInterval = 1 * time.Second
+	exp.Reset()
+	var dashboard *qstypes.Dashboard
+	for dashboard == nil || dashboard.Version.Status == qstypes.ResourceStatusCreationInProgress {
+		d, err := GetDashboard(ctx, quicksightClient, dashboardId, awsAccountId, versionNumber)
+		if err != nil {
+			return nil, err
+		}
+		tflog.Debug(ctx, fmt.Sprintf("Dashboard %s status is %s", *dashboardId, d.Version.Status))
+		dashboard = d
+		if exp.GetElapsedTime() > 15*time.Minute {
+			return nil, &TimeoutError{}
+		} else {
+			time.Sleep(exp.NextBackOff())
+		}
+	}
+
+	if dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful && dashboard.Version.Status != qstypes.ResourceStatusCreationFailed {
+		panic("Unexpected dashboard status")
+	}
+
+	return dashboard, nil
 }
 
 func MaybeStringValue(value *string) basetypes.StringValue {
@@ -230,4 +307,15 @@ func SafeStringCompare(a, b *string) int {
 	} else {
 		return strings.Compare(*a, *b)
 	}
+}
+
+func WriteToFile(filename string, variable string) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(variable)
+	return err
 }
