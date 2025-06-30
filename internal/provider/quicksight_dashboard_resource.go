@@ -124,9 +124,6 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 2048),
 				},
-				// PlanModifiers: []planmodifier.String{
-				// 	stringplanmodifier.RequiresReplace(),
-				// },
 			},
 			"arn": schema.StringAttribute{
 				Computed: true,
@@ -134,9 +131,6 @@ func (r *quicksightDashboardResource) Schema(_ context.Context, _ resource.Schem
 			"definition": schema.StringAttribute{
 				Required:   true,
 				CustomType: jsontypes.NormalizedType{},
-				// PlanModifiers: []planmodifier.String{
-				// 	stringplanmodifier.RequiresReplace(),
-				// },
 			},
 			"created_time": schema.StringAttribute{
 				Computed: true,
