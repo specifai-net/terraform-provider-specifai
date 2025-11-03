@@ -268,27 +268,33 @@ func (r *quicksightDashboardPermissionResource) updateDashboardPermissions(ctx c
 		}
 	}
 
-	// Do request
-	tflog.Trace(ctx, fmt.Sprintf("UpdateDashboardPermissions: %v", updateDashboardPermissionsInput))
-	out, err := r.providerData.Quicksight.UpdateDashboardPermissions(ctx, updateDashboardPermissionsInput)
-	if err != nil {
-		diag.AddError("Failed to update dashboard permissions", err.Error())
-		return
-	}
-	tflog.Debug(ctx, fmt.Sprintf("UpdateDashboardPermissions returned %d", out.Status))
+	if len(updateDashboardPermissionsInput.GrantPermissions) > 0 || len(updateDashboardPermissionsInput.RevokePermissions) > 0 {
+		// Do request
+		tflog.Debug(ctx, fmt.Sprintf("UpdateDashboardPermissions: %v", updateDashboardPermissionsInput))
+		out, err := r.providerData.Quicksight.UpdateDashboardPermissions(ctx, updateDashboardPermissionsInput)
+		if err != nil {
+			diag.AddError("Failed to update dashboard permissions", err.Error())
+			return
+		}
+		tflog.Debug(ctx, fmt.Sprintf("UpdateDashboardPermissions returned %d", out.Status))
 
-	// Build the resulting state from the response
-	resp.DashboardId = types.StringValue(*out.DashboardId)
-	resp.AwsAccountId = types.StringValue(*updateDashboardPermissionsInput.AwsAccountId)
-	resp.Principal = req.Principal
-	permission := FindPermissionForPrinciple(out.Permissions, resp.Principal.ValueStringPointer())
-	if permission == nil {
-		diag.AddError("Failed to update dashboard permissions", "Missing dashboard permissions for principal after update")
-		return
-	}
-	resp.Actions = make([]basetypes.StringValue, len(permission.Actions))
-	for j, action := range permission.Actions {
-		resp.Actions[j] = types.StringValue(action)
+		// Build the resulting state from the response
+		resp.DashboardId = types.StringValue(*out.DashboardId)
+		resp.AwsAccountId = types.StringValue(*updateDashboardPermissionsInput.AwsAccountId)
+		resp.Principal = req.Principal
+		permission := FindPermissionForPrinciple(out.Permissions, resp.Principal.ValueStringPointer())
+		if permission == nil {
+			diag.AddError("Failed to update dashboard permissions", "Missing dashboard permissions for principal after update")
+			return
+		}
+		resp.Actions = make([]basetypes.StringValue, len(permission.Actions))
+		for j, action := range permission.Actions {
+			resp.Actions[j] = types.StringValue(action)
+		}
+	} else {
+		// No changes, return the existing desired state
+		*resp = *req
+		resp.AwsAccountId = types.StringValue(*updateDashboardPermissionsInput.AwsAccountId)
 	}
 }
 
