@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/quicksight"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -109,11 +106,7 @@ func (p *specifaiProvider) Configure(ctx context.Context, req provider.Configure
 
 	// Create AWS service clients
 	providerData.Quicksight = quicksight.NewFromConfig(cfg, func(o *quicksight.Options) {
-		o.Retryer = retry.NewStandard(func(o *retry.StandardOptions) {
-			o.MaxAttempts = 15
-			o.RateLimiter = ratelimit.NewTokenRateLimit(100)
-		})
-		o.RetryMode = aws.RetryModeStandard
+		o.Retryer = NewRetryer(20, 15, ctx)
 	})
 	providerData.Sts = sts.NewFromConfig(cfg)
 	tflog.Debug(ctx, "Created AWS clients")
