@@ -13,19 +13,19 @@ resource "specifai_quicksight_topic" "example" {
   user_experience_version = "NEW_READER_EXPERIENCE"
   data_sets   = jsonencode([
     {
-      dataset_arn = "arn:aws:quicksight:us-east-1:123456789012:dataset/sales-dataset"
-      dataset_name = "Sales Data"
-      dataset_description = "Monthly sales data"
+      DatasetArn = "arn:aws:quicksight:us-east-1:123456789012:dataset/sales-dataset"
+      DatasetName = "Sales Data"
+      DatasetDescription = "Monthly sales data"
     },
     {
-      dataset_arn = "arn:aws:quicksight:us-east-1:123456789012:dataset/customer-dataset"
-      dataset_name = "Customer Data"
-      dataset_description = "Customer information"
-      columns = [
+      DatasetArn = "arn:aws:quicksight:us-east-1:123456789012:dataset/customer-dataset"
+      DatasetName = "Customer Data"
+      DatasetDescription = "Customer information"
+      Columns = [
         {
-          column_name = "customer_id"
-          column_description = "Unique customer identifier"
-          column_data_role = "DIMENSION"
+          ColumnName = "customer_id"
+          ColumnDescription = "Unique customer identifier"
+          ColumnDataRole = "DIMENSION"
         }
       ]
     }
@@ -39,22 +39,19 @@ The following arguments are supported:
 
 * `topic_id` - (Required) Identifier for the topic.
 * `name` - (Required) The name of the topic.
+* `data_sets` - (Required) JSON string containing an array of dataset objects. Each dataset must contain at least `DatasetArn`. Additional fields like `DatasetName`, `DatasetDescription`, `Columns`, `CalculatedFields`, `Filters`, etc. can be included as per AWS QuickSight DatasetMetadata structure. Note: Field names must use PascalCase (e.g., `DatasetArn`, not `dataset_arn`).
 * `description` - (Optional) The description of the topic.
 * `custom_instructions` - (Optional) Custom instructions for the topic.
 * `user_experience_version` - (Optional) The user experience version of the topic. Valid values are `LEGACY` and `NEW_READER_EXPERIENCE`.
-* `data_sets` - (Required) JSON string containing an array of dataset objects. Each dataset must contain at least `dataset_arn`. Additional fields like `dataset_name`, `dataset_description`, `columns`, `calculated_fields`, `filters`, etc. can be included as per AWS QuickSight DatasetMetadata structure.
-* `aws_account_id` - (Optional) AWS account ID. If not specified, the default account ID is used.
+* `aws_account_id` - (Optional) AWS account ID. If not specified, the default account ID from the provider configuration is used.
 
 ## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
 * `arn` - ARN of the topic.
+* `aws_account_id` - The AWS account ID used (computed if not explicitly set).
 
 ## Import
 
-QuickSight Topics can be imported using the `aws_account_id/topic_id`, e.g.,
-
-```
-$ terraform import specifai_quicksight_topic.example 123456789012/example-topic
-```
+Import is not currently supported for QuickSight Topics.
