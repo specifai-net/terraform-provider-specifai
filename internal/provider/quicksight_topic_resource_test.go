@@ -25,10 +25,10 @@ func TestQuicksightTopicResource_Schema(t *testing.T) {
 		required bool
 		computed bool
 	}{
-		"topic_id":    {required: true, computed: false},
-		"name":        {required: true, computed: false},
-		"data_sets":   {required: true, computed: false},
-		"arn":         {required: false, computed: true},
+		"topic_id":       {required: true, computed: false},
+		"name":           {required: true, computed: false},
+		"data_sets":      {required: true, computed: false},
+		"arn":            {required: false, computed: true},
 		"aws_account_id": {required: false, computed: true},
 	}
 
