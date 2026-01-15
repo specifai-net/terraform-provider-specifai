@@ -17,20 +17,20 @@ resource "specifai_quicksight_topic" "sales" {
 
   data_sets = jsonencode([
     {
-      "DatasetArn": "arn:aws:quicksight:eu-west-1:123456789012:dataset/300242f6-24aa-4fcb-bad6-61f5fa77ae4c",
-      "DatasetName": "Sales Dataset",
-      "DatasetDescription": "Sales data"
+      "DatasetArn" : "arn:aws:quicksight:eu-west-1:123456789012:dataset/300242f6-24aa-4fcb-bad6-61f5fa77ae4c",
+      "DatasetName" : "Sales Dataset",
+      "DatasetDescription" : "Sales data"
     }
   ])
 
-  custom_instructions = "Focus on sales metrics and trends"
+  custom_instructions     = "Focus on sales metrics and trends"
   user_experience_version = "NEW_READER_EXPERIENCE"
 }
 
 resource "specifai_quicksight_topic_permission" "owner_permission" {
   topic_id  = specifai_quicksight_topic.sales.topic_id
   principal = "arn:aws:quicksight:eu-west-1:123456789012:user/default/owner"
-  actions   = [
+  actions = [
     "quicksight:DescribeTopicRefresh",
     "quicksight:ListTopicRefreshSchedules",
     "quicksight:DescribeTopicRefreshSchedule",
