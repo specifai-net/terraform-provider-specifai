@@ -236,16 +236,19 @@ func (r *quicksightTopicRefreshScheduleResource) Read(ctx context.Context, req r
 	if output.RefreshSchedule != nil {
 		state.BasedOnSpiceSchedule = types.BoolValue(output.RefreshSchedule.BasedOnSpiceSchedule)
 		state.IsEnabled = types.BoolValue(*output.RefreshSchedule.IsEnabled)
-		if output.RefreshSchedule.StartingAt != nil {
+		// Only update optional fields if they were set in config
+		if !state.StartingAt.IsNull() && output.RefreshSchedule.StartingAt != nil {
 			state.StartingAt = types.StringValue(output.RefreshSchedule.StartingAt.Format(time.RFC3339))
 		}
-		if output.RefreshSchedule.Timezone != nil {
+		if !state.Timezone.IsNull() && output.RefreshSchedule.Timezone != nil {
 			state.Timezone = types.StringValue(*output.RefreshSchedule.Timezone)
 		}
-		if output.RefreshSchedule.RepeatAt != nil {
+		if !state.RepeatAt.IsNull() && output.RefreshSchedule.RepeatAt != nil {
 			state.RepeatAt = types.StringValue(*output.RefreshSchedule.RepeatAt)
 		}
-		state.TopicScheduleType = types.StringValue(string(output.RefreshSchedule.TopicScheduleType))
+		if !state.TopicScheduleType.IsNull() {
+			state.TopicScheduleType = types.StringValue(string(output.RefreshSchedule.TopicScheduleType))
+		}
 	}
 
 	diags = resp.State.Set(ctx, &state)
