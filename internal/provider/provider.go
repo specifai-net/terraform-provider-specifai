@@ -143,5 +143,8 @@ func (p *specifaiProvider) Resources(_ context.Context) []func() resource.Resour
 	return []func() resource.Resource{
 		NewQuicksightDashboardResource,
 		NewQuicksightDashboardPermissionResource,
+		NewQuicksightTopicResource,
+		NewQuicksightTopicPermissionResource,
+		NewQuicksightTopicRefreshScheduleResource,
 	}
 }
