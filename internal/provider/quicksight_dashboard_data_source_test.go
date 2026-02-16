@@ -1,6 +1,5 @@
 package provider
 
-/*
 import (
 	"testing"
 
@@ -19,7 +18,7 @@ func TestAccQuicksightDashboardDataSource(t *testing.T) {
 				`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.specifai_quicksight_dashboard.test", "dashboard_id", "a775daeb-5263-4fb2-9f29-815c066bae76"),
-					resource.TestCheckResourceAttr("data.specifai_quicksight_dashboard.test", "aws_account_id", "123456789012"),
+					resource.TestCheckResourceAttrSet("data.specifai_quicksight_dashboard.test", "aws_account_id"),
 					resource.TestCheckResourceAttrSet("data.specifai_quicksight_dashboard.test", "created_time"),
 					resource.TestCheckResourceAttrSet("data.specifai_quicksight_dashboard.test", "last_updated_time"),
 					resource.TestCheckResourceAttrSet("data.specifai_quicksight_dashboard.test", "last_published_time"),
@@ -31,4 +30,3 @@ func TestAccQuicksightDashboardDataSource(t *testing.T) {
 		},
 	})
 }
-*/

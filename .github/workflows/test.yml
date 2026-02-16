@@ -34,6 +34,18 @@ jobs:
         with:
           version: latest
 
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+      - run: go mod download
+      - run: go test ./internal/provider -v
+
   generate:
     name: Generate
     runs-on: ubuntu-latest
