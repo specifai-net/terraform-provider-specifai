@@ -135,6 +135,7 @@ func (p *specifaiProvider) DataSources(_ context.Context) []func() datasource.Da
 	return []func() datasource.DataSource{
 		NewQuicksightDashboardDataSource,
 		NewnormalizedDashboardDefinitionDataSource,
+		NewQuicksightTopicDataSource,
 	}
 }
 
