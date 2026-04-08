@@ -64,7 +64,10 @@ func TestQuicksightTagResource_Metadata(t *testing.T) {
 }
 
 func TestQuicksightTagResource_Configure_Nil(t *testing.T) {
-	res := NewQuicksightTagResource().(*quicksightTagResource)
+	res, ok := NewQuicksightTagResource().(*quicksightTagResource)
+	if !ok {
+		t.Fatal("Expected *quicksightTagResource")
+	}
 
 	req := resource.ConfigureRequest{ProviderData: nil}
 	resp := &resource.ConfigureResponse{}
@@ -77,7 +80,10 @@ func TestQuicksightTagResource_Configure_Nil(t *testing.T) {
 }
 
 func TestQuicksightTagResource_Configure_WrongType(t *testing.T) {
-	res := NewQuicksightTagResource().(*quicksightTagResource)
+	res, ok := NewQuicksightTagResource().(*quicksightTagResource)
+	if !ok {
+		t.Fatal("Expected *quicksightTagResource")
+	}
 
 	req := resource.ConfigureRequest{ProviderData: "wrong type"}
 	resp := &resource.ConfigureResponse{}
