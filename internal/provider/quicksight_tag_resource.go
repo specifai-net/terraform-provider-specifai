@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -121,6 +122,12 @@ func (r *quicksightTagResource) Read(ctx context.Context, req resource.ReadReque
 		ResourceArn: aws.String(state.ResourceArn.ValueString()),
 	})
 	if err != nil {
+		var notFound *qstypes.ResourceNotFoundException
+		if errors.As(err, &notFound) {
+			tflog.Warn(ctx, fmt.Sprintf("Resource %s not found, removing from state", state.ResourceArn.ValueString()))
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Failed to read tags", err.Error())
 		return
 	}
@@ -249,6 +256,11 @@ func (r *quicksightTagResource) Delete(ctx context.Context, req resource.DeleteR
 		TagKeys:     keys,
 	})
 	if err != nil {
+		var notFound *qstypes.ResourceNotFoundException
+		if errors.As(err, &notFound) {
+			tflog.Warn(ctx, fmt.Sprintf("Resource %s not found, already deleted", state.ResourceArn.ValueString()))
+			return
+		}
 		resp.Diagnostics.AddError("Failed to untag resource", err.Error())
 		return
 	}
