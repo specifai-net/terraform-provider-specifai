@@ -136,6 +136,7 @@ func (p *specifaiProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewQuicksightDashboardDataSource,
 		NewnormalizedDashboardDefinitionDataSource,
 		NewQuicksightTopicDataSource,
+		NewQuicksightAgentDataSource,
 	}
 }
 
@@ -148,5 +149,7 @@ func (p *specifaiProvider) Resources(_ context.Context) []func() resource.Resour
 		NewQuicksightTopicPermissionResource,
 		NewQuicksightTopicRefreshScheduleResource,
 		NewQuicksightTagResource,
+		NewQuicksightAgentResource,
+		NewQuicksightAgentPermissionResource,
 	}
 }
