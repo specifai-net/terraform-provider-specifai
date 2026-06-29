@@ -60,7 +60,7 @@ func TestQuicksightAgentResource_Metadata(t *testing.T) {
 
 	res.Metadata(context.Background(), req, resp)
 
-	expected := "specifai_quicksight_agent"
+	expected := "specifai_quicksight_chatagent"
 	if resp.TypeName != expected {
 		t.Errorf("TypeName = %s, expected %s", resp.TypeName, expected)
 	}
@@ -94,7 +94,7 @@ func TestQuicksightAgentPermissionResource_Metadata(t *testing.T) {
 
 	res.Metadata(context.Background(), req, resp)
 
-	expected := "specifai_quicksight_agent_permission"
+	expected := "specifai_quicksight_chatagent_permission"
 	if resp.TypeName != expected {
 		t.Errorf("TypeName = %s, expected %s", resp.TypeName, expected)
 	}
@@ -134,7 +134,7 @@ func TestQuicksightAgentDataSource_Metadata(t *testing.T) {
 
 	ds.Metadata(context.Background(), req, resp)
 
-	expected := "specifai_quicksight_agent"
+	expected := "specifai_quicksight_chatagent"
 	if resp.TypeName != expected {
 		t.Errorf("TypeName = %s, expected %s", resp.TypeName, expected)
 	}

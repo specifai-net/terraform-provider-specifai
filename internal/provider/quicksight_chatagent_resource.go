@@ -53,7 +53,7 @@ type quicksightAgentResourceModel struct {
 }
 
 func (r *quicksightAgentResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_quicksight_agent"
+	resp.TypeName = req.ProviderTypeName + "_quicksight_chatagent"
 }
 
 func (r *quicksightAgentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {

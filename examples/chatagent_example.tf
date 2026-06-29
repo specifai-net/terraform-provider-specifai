@@ -30,7 +30,7 @@ resource "specifai_quicksight_space_permission" "sales_space_owner" {
 }
 
 # Create an agent connected to the space
-resource "specifai_quicksight_agent" "sales_agent" {
+resource "specifai_quicksight_chatagent" "sales_agent" {
   agent_id        = "sales-agent"
   name            = "Sales Analytics Agent"
   description     = "An agent that helps with sales data analysis"
@@ -53,8 +53,8 @@ resource "specifai_quicksight_agent" "sales_agent" {
   spaces = [specifai_quicksight_space.sales_space.arn]
 }
 
-resource "specifai_quicksight_agent_permission" "sales_agent_owner" {
-  agent_id  = specifai_quicksight_agent.sales_agent.agent_id
+resource "specifai_quicksight_chatagent_permission" "sales_agent_owner" {
+  agent_id  = specifai_quicksight_chatagent.sales_agent.agent_id
   principal = "arn:aws:quicksight:us-east-1:123456789012:user/default/admin"
   actions = [
     "quicksight:DescribeAgent",
@@ -66,14 +66,14 @@ resource "specifai_quicksight_agent_permission" "sales_agent_owner" {
 }
 
 # Read the agent back via data source
-data "specifai_quicksight_agent" "sales_agent" {
-  agent_id = specifai_quicksight_agent.sales_agent.agent_id
+data "specifai_quicksight_chatagent" "sales_agent" {
+  agent_id = specifai_quicksight_chatagent.sales_agent.agent_id
 }
 
 output "agent_arn" {
-  value = data.specifai_quicksight_agent.sales_agent.arn
+  value = data.specifai_quicksight_chatagent.sales_agent.arn
 }
 
 output "agent_status" {
-  value = data.specifai_quicksight_agent.sales_agent.agent_status
+  value = data.specifai_quicksight_chatagent.sales_agent.agent_status
 }
