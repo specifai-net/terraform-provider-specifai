@@ -17,33 +17,33 @@ import (
 )
 
 var (
-	_ resource.Resource              = &quicksightTopicPermissionResource{}
-	_ resource.ResourceWithConfigure = &quicksightTopicPermissionResource{}
+	_ resource.Resource              = &quicksightSpacePermissionResource{}
+	_ resource.ResourceWithConfigure = &quicksightSpacePermissionResource{}
 )
 
-func NewQuicksightTopicPermissionResource() resource.Resource {
-	return &quicksightTopicPermissionResource{}
+func NewQuicksightSpacePermissionResource() resource.Resource {
+	return &quicksightSpacePermissionResource{}
 }
 
-type quicksightTopicPermissionResource struct {
+type quicksightSpacePermissionResource struct {
 	providerData *specifaiProviderData
 }
 
-type quicksightTopicPermissionResourceModel struct {
-	TopicId      types.String `tfsdk:"topic_id"`
+type quicksightSpacePermissionResourceModel struct {
+	SpaceId      types.String `tfsdk:"space_id"`
 	AwsAccountId types.String `tfsdk:"aws_account_id"`
 	Principal    types.String `tfsdk:"principal"`
 	Actions      types.Set    `tfsdk:"actions"`
 }
 
-func (r *quicksightTopicPermissionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_quicksight_topic_permission"
+func (r *quicksightSpacePermissionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_quicksight_space_permission"
 }
 
-func (r *quicksightTopicPermissionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *quicksightSpacePermissionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"topic_id": schema.StringAttribute{
+			"space_id": schema.StringAttribute{
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -69,7 +69,7 @@ func (r *quicksightTopicPermissionResource) Schema(_ context.Context, _ resource
 	}
 }
 
-func (r *quicksightTopicPermissionResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *quicksightSpacePermissionResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -86,8 +86,8 @@ func (r *quicksightTopicPermissionResource) Configure(_ context.Context, req res
 	r.providerData = &providerData
 }
 
-func (r *quicksightTopicPermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var config quicksightTopicPermissionResourceModel
+func (r *quicksightSpacePermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var config quicksightSpacePermissionResourceModel
 	diags := req.Plan.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -99,15 +99,13 @@ func (r *quicksightTopicPermissionResource) Create(ctx context.Context, req reso
 		awsAccountId = aws.String(config.AwsAccountId.ValueString())
 	}
 
-	// Verify the topic exists before creating permissions
-	describeTopicInput := &quicksight.DescribeTopicInput{
+	// Verify space exists
+	_, spaceErr := r.providerData.Quicksight.DescribeSpace(ctx, &quicksight.DescribeSpaceInput{
 		AwsAccountId: awsAccountId,
-		TopicId:      aws.String(config.TopicId.ValueString()),
-	}
-
-	_, topicErr := r.providerData.Quicksight.DescribeTopic(ctx, describeTopicInput)
-	if topicErr != nil {
-		resp.Diagnostics.AddError("Topic not found", fmt.Sprintf("Cannot create permissions for non-existent topic %s: %s", config.TopicId.ValueString(), topicErr.Error()))
+		SpaceId:      aws.String(config.SpaceId.ValueString()),
+	})
+	if spaceErr != nil {
+		resp.Diagnostics.AddError("Space not found", fmt.Sprintf("Cannot create permissions for non-existent space %s: %s", config.SpaceId.ValueString(), spaceErr.Error()))
 		return
 	}
 
@@ -118,35 +116,28 @@ func (r *quicksightTopicPermissionResource) Create(ctx context.Context, req reso
 		return
 	}
 
-	updateInput := &quicksight.UpdateTopicPermissionsInput{
+	tflog.Trace(ctx, fmt.Sprintf("UpdateSpacePermissions (Create): %s", config.SpaceId.ValueString()))
+	_, err := r.providerData.Quicksight.UpdateSpacePermissions(ctx, &quicksight.UpdateSpacePermissionsInput{
 		AwsAccountId: awsAccountId,
-		TopicId:      aws.String(config.TopicId.ValueString()),
+		SpaceId:      aws.String(config.SpaceId.ValueString()),
 		GrantPermissions: []qstypes.ResourcePermission{
 			{
 				Principal: aws.String(config.Principal.ValueString()),
 				Actions:   actions,
 			},
 		},
-	}
-
-	tflog.Trace(ctx, fmt.Sprintf("UpdateTopicPermissions (Create): %v", config))
-	_, err := r.providerData.Quicksight.UpdateTopicPermissions(ctx, updateInput)
+	})
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to create topic permission", err.Error())
+		resp.Diagnostics.AddError("Failed to create space permission", err.Error())
 		return
-	}
-
-	// Always set the aws_account_id that was actually used
-	if config.AwsAccountId.ValueString() != "" {
-		config.AwsAccountId = types.StringValue(*awsAccountId)
 	}
 
 	diags = resp.State.Set(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *quicksightTopicPermissionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state quicksightTopicPermissionResourceModel
+func (r *quicksightSpacePermissionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state quicksightSpacePermissionResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -158,24 +149,20 @@ func (r *quicksightTopicPermissionResource) Read(ctx context.Context, req resour
 		awsAccountId = aws.String(state.AwsAccountId.ValueString())
 	}
 
-	describeInput := &quicksight.DescribeTopicPermissionsInput{
+	out, err := r.providerData.Quicksight.DescribeSpacePermissions(ctx, &quicksight.DescribeSpacePermissionsInput{
 		AwsAccountId: awsAccountId,
-		TopicId:      aws.String(state.TopicId.ValueString()),
-	}
-
-	out, err := r.providerData.Quicksight.DescribeTopicPermissions(ctx, describeInput)
+		SpaceId:      aws.String(state.SpaceId.ValueString()),
+	})
 	if err != nil {
 		var notFoundErr *qstypes.ResourceNotFoundException
 		if errors.As(err, &notFoundErr) {
-			resp.Diagnostics.AddWarning("Topic permission not found, removing from state", err.Error())
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		resp.Diagnostics.AddError("Unable to read topic permissions", err.Error())
+		resp.Diagnostics.AddError("Unable to read space permissions", err.Error())
 		return
 	}
 
-	// Find the specific permission for this principal
 	var foundPermission *qstypes.ResourcePermission
 	for _, perm := range out.Permissions {
 		if *perm.Principal == state.Principal.ValueString() {
@@ -185,7 +172,6 @@ func (r *quicksightTopicPermissionResource) Read(ctx context.Context, req resour
 	}
 
 	if foundPermission == nil {
-		resp.Diagnostics.AddWarning("Topic permission not found for principal, removing from state", "")
 		resp.State.RemoveResource(ctx)
 		return
 	}
@@ -201,8 +187,8 @@ func (r *quicksightTopicPermissionResource) Read(ctx context.Context, req resour
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *quicksightTopicPermissionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var config quicksightTopicPermissionResourceModel
+func (r *quicksightSpacePermissionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var config quicksightSpacePermissionResourceModel
 	diags := req.Plan.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -221,21 +207,19 @@ func (r *quicksightTopicPermissionResource) Update(ctx context.Context, req reso
 		return
 	}
 
-	updateInput := &quicksight.UpdateTopicPermissionsInput{
+	tflog.Trace(ctx, fmt.Sprintf("UpdateSpacePermissions (Update): %s", config.SpaceId.ValueString()))
+	_, err := r.providerData.Quicksight.UpdateSpacePermissions(ctx, &quicksight.UpdateSpacePermissionsInput{
 		AwsAccountId: awsAccountId,
-		TopicId:      aws.String(config.TopicId.ValueString()),
+		SpaceId:      aws.String(config.SpaceId.ValueString()),
 		GrantPermissions: []qstypes.ResourcePermission{
 			{
 				Principal: aws.String(config.Principal.ValueString()),
 				Actions:   actions,
 			},
 		},
-	}
-
-	tflog.Trace(ctx, fmt.Sprintf("UpdateTopicPermissions (Update): %v", config))
-	_, err := r.providerData.Quicksight.UpdateTopicPermissions(ctx, updateInput)
+	})
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to update topic permission", err.Error())
+		resp.Diagnostics.AddError("Failed to update space permission", err.Error())
 		return
 	}
 
@@ -243,8 +227,8 @@ func (r *quicksightTopicPermissionResource) Update(ctx context.Context, req reso
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *quicksightTopicPermissionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state quicksightTopicPermissionResourceModel
+func (r *quicksightSpacePermissionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state quicksightSpacePermissionResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -263,21 +247,19 @@ func (r *quicksightTopicPermissionResource) Delete(ctx context.Context, req reso
 		return
 	}
 
-	updateInput := &quicksight.UpdateTopicPermissionsInput{
+	tflog.Trace(ctx, fmt.Sprintf("UpdateSpacePermissions (Delete): %s", state.SpaceId.ValueString()))
+	_, err := r.providerData.Quicksight.UpdateSpacePermissions(ctx, &quicksight.UpdateSpacePermissionsInput{
 		AwsAccountId: awsAccountId,
-		TopicId:      aws.String(state.TopicId.ValueString()),
+		SpaceId:      aws.String(state.SpaceId.ValueString()),
 		RevokePermissions: []qstypes.ResourcePermission{
 			{
 				Principal: aws.String(state.Principal.ValueString()),
 				Actions:   actions,
 			},
 		},
-	}
-
-	tflog.Trace(ctx, fmt.Sprintf("UpdateTopicPermissions (Delete): %s", state.TopicId.ValueString()))
-	_, err := r.providerData.Quicksight.UpdateTopicPermissions(ctx, updateInput)
+	})
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to delete topic permission", err.Error())
+		resp.Diagnostics.AddError("Failed to delete space permission", err.Error())
 		return
 	}
 }

@@ -33,7 +33,7 @@ type quicksightAgentPermissionResourceModel struct {
 	AgentId      types.String `tfsdk:"agent_id"`
 	AwsAccountId types.String `tfsdk:"aws_account_id"`
 	Principal    types.String `tfsdk:"principal"`
-	Actions      types.List   `tfsdk:"actions"`
+	Actions      types.Set    `tfsdk:"actions"`
 }
 
 func (r *quicksightAgentPermissionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -61,7 +61,7 @@ func (r *quicksightAgentPermissionResource) Schema(_ context.Context, _ resource
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"actions": schema.ListAttribute{
+			"actions": schema.SetAttribute{
 				ElementType: types.StringType,
 				Required:    true,
 			},
@@ -177,7 +177,7 @@ func (r *quicksightAgentPermissionResource) Read(ctx context.Context, req resour
 		return
 	}
 
-	actionsList, diags := types.ListValueFrom(ctx, types.StringType, foundPermission.Actions)
+	actionsList, diags := types.SetValueFrom(ctx, types.StringType, foundPermission.Actions)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

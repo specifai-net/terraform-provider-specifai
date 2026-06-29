@@ -220,6 +220,12 @@ func (r *quicksightAgentResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	// Wait for agent to become ACTIVE
+	if err := r.waitForAgentActive(ctx, awsAccountId, config.AgentId.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Agent failed to become active after creation", err.Error())
+		return
+	}
+
 	config.Arn = types.StringValue(*out.Arn)
 	config.AwsAccountId = types.StringValue(*awsAccountId)
 
@@ -266,6 +272,23 @@ func (r *quicksightAgentResource) Read(ctx context.Context, req resource.ReadReq
 		}
 		if out.Agent.IconId != nil {
 			state.IconId = types.StringValue(*out.Agent.IconId)
+		}
+		if out.Agent.CustomPromptInterface != nil {
+			if out.Agent.CustomPromptInterface.CustomInstructions != nil {
+				state.CustomInstructions = types.StringValue(*out.Agent.CustomPromptInterface.CustomInstructions)
+			}
+			if out.Agent.CustomPromptInterface.Identity != nil {
+				state.Identity = types.StringValue(*out.Agent.CustomPromptInterface.Identity)
+			}
+			if out.Agent.CustomPromptInterface.OutputStyle != nil {
+				state.OutputStyle = types.StringValue(*out.Agent.CustomPromptInterface.OutputStyle)
+			}
+			if out.Agent.CustomPromptInterface.ResponseLength != nil {
+				state.ResponseLength = types.StringValue(*out.Agent.CustomPromptInterface.ResponseLength)
+			}
+			if out.Agent.CustomPromptInterface.Tone != nil {
+				state.Tone = types.StringValue(*out.Agent.CustomPromptInterface.Tone)
+			}
 		}
 		if out.Agent.StarterPrompts != nil && len(out.Agent.StarterPrompts) > 0 {
 			prompts, diags := types.ListValueFrom(ctx, types.StringType, out.Agent.StarterPrompts)
@@ -375,6 +398,12 @@ func (r *quicksightAgentResource) Update(ctx context.Context, req resource.Updat
 	_, err := r.providerData.Quicksight.UpdateAgent(ctx, updateInput)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update agent", err.Error())
+		return
+	}
+
+	// Wait for agent to become ACTIVE after update
+	if waitErr := r.waitForAgentActive(ctx, awsAccountId, config.AgentId.ValueString()); waitErr != nil {
+		resp.Diagnostics.AddError("Agent failed to become active after update", waitErr.Error())
 		return
 	}
 

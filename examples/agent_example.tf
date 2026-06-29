@@ -10,6 +10,26 @@ provider "specifai" {
   region = "us-east-1"
 }
 
+# Create a space for the agent's data
+resource "specifai_quicksight_space" "sales_space" {
+  space_id    = "sales-space"
+  name        = "Sales Space"
+  description = "Space containing sales analytics data"
+}
+
+resource "specifai_quicksight_space_permission" "sales_space_owner" {
+  space_id  = specifai_quicksight_space.sales_space.space_id
+  principal = "arn:aws:quicksight:us-east-1:123456789012:user/default/admin"
+  actions = [
+    "quicksight:DescribeSpace",
+    "quicksight:UpdateSpace",
+    "quicksight:DeleteSpace",
+    "quicksight:DescribeSpacePermissions",
+    "quicksight:UpdateSpacePermissions"
+  ]
+}
+
+# Create an agent connected to the space
 resource "specifai_quicksight_agent" "sales_agent" {
   agent_id        = "sales-agent"
   name            = "Sales Analytics Agent"
@@ -28,6 +48,9 @@ resource "specifai_quicksight_agent" "sales_agent" {
     "Show me the top 10 customers by revenue",
     "Compare this quarter to last quarter"
   ]
+
+  # Connect the space to the agent
+  spaces = [specifai_quicksight_space.sales_space.arn]
 }
 
 resource "specifai_quicksight_agent_permission" "sales_agent_owner" {
@@ -42,10 +65,15 @@ resource "specifai_quicksight_agent_permission" "sales_agent_owner" {
   ]
 }
 
-data "specifai_quicksight_agent" "existing" {
-  agent_id = "existing-agent-id"
+# Read the agent back via data source
+data "specifai_quicksight_agent" "sales_agent" {
+  agent_id = specifai_quicksight_agent.sales_agent.agent_id
 }
 
-output "existing_agent_name" {
-  value = data.specifai_quicksight_agent.existing.name
+output "agent_arn" {
+  value = data.specifai_quicksight_agent.sales_agent.arn
+}
+
+output "agent_status" {
+  value = data.specifai_quicksight_agent.sales_agent.agent_status
 }
