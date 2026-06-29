@@ -290,17 +290,17 @@ func (r *quicksightAgentResource) Read(ctx context.Context, req resource.ReadReq
 				state.Tone = types.StringValue(*out.Agent.CustomPromptInterface.Tone)
 			}
 		}
-		if out.Agent.StarterPrompts != nil && len(out.Agent.StarterPrompts) > 0 {
+		if len(out.Agent.StarterPrompts) > 0 {
 			prompts, diags := types.ListValueFrom(ctx, types.StringType, out.Agent.StarterPrompts)
 			resp.Diagnostics.Append(diags...)
 			state.StarterPrompts = prompts
 		}
-		if out.Agent.Spaces != nil && len(out.Agent.Spaces) > 0 {
+		if len(out.Agent.Spaces) > 0 {
 			spaces, diags := types.ListValueFrom(ctx, types.StringType, out.Agent.Spaces)
 			resp.Diagnostics.Append(diags...)
 			state.Spaces = spaces
 		}
-		if out.Agent.ActionConnectors != nil && len(out.Agent.ActionConnectors) > 0 {
+		if len(out.Agent.ActionConnectors) > 0 {
 			connectors, diags := types.ListValueFrom(ctx, types.StringType, out.Agent.ActionConnectors)
 			resp.Diagnostics.Append(diags...)
 			state.ActionConnectors = connectors
@@ -466,7 +466,7 @@ func buildCustomPromptParams(config quicksightAgentResourceModel) *qstypes.Custo
 	return params
 }
 
-// diff returns elements in a that are not in b
+// diff returns elements in a that are not in b.
 func diff(a, b []string) []string {
 	bSet := make(map[string]struct{}, len(b))
 	for _, v := range b {
