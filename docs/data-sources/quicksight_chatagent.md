@@ -32,6 +32,6 @@ description: |-
 - `description` (String)
 - `icon_id` (String)
 - `name` (String)
-- `spaces` (List of String)
+- `spaces` (Set of String)
 - `starter_prompts` (List of String)
 - `welcome_message` (String)
