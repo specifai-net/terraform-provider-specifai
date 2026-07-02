@@ -30,7 +30,7 @@ type quicksightAgentDataSourceModel struct {
 	WelcomeMessage   types.String `tfsdk:"welcome_message"`
 	IconId           types.String `tfsdk:"icon_id"`
 	StarterPrompts   types.List   `tfsdk:"starter_prompts"`
-	Spaces           types.List   `tfsdk:"spaces"`
+	Spaces           types.Set    `tfsdk:"spaces"`
 	ActionConnectors types.List   `tfsdk:"action_connectors"`
 	Arn              types.String `tfsdk:"arn"`
 }
@@ -85,7 +85,7 @@ func (d *quicksightAgentDataSource) Schema(_ context.Context, _ datasource.Schem
 				Computed:    true,
 				ElementType: types.StringType,
 			},
-			"spaces": schema.ListAttribute{
+			"spaces": schema.SetAttribute{
 				Computed:    true,
 				ElementType: types.StringType,
 			},
@@ -144,11 +144,11 @@ func (d *quicksightAgentDataSource) Read(ctx context.Context, req datasource.Rea
 			state.StarterPrompts = types.ListNull(types.StringType)
 		}
 		if out.Agent.Spaces != nil {
-			spaces, d := types.ListValueFrom(ctx, types.StringType, out.Agent.Spaces)
+			spaces, d := types.SetValueFrom(ctx, types.StringType, out.Agent.Spaces)
 			resp.Diagnostics.Append(d...)
 			state.Spaces = spaces
 		} else {
-			state.Spaces = types.ListNull(types.StringType)
+			state.Spaces = types.SetNull(types.StringType)
 		}
 		if out.Agent.ActionConnectors != nil {
 			connectors, d := types.ListValueFrom(ctx, types.StringType, out.Agent.ActionConnectors)
