@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -373,8 +374,8 @@ func (r *quicksightAgentResource) Update(ctx context.Context, req resource.Updat
 	if !config.Spaces.IsNull() {
 		config.Spaces.ElementsAs(ctx, &newSpaces, false)
 	}
-	updateInput.SpacesToAdd = diff(newSpaces, oldSpaces)
-	updateInput.SpacesToRemove = diff(oldSpaces, newSpaces)
+	updateInput.SpacesToAdd = slices.DeleteFunc(newSpaces, func(s string) bool { return slices.Contains(oldSpaces, s) })
+	updateInput.SpacesToRemove = slices.DeleteFunc(oldSpaces, func(s string) bool { return slices.Contains(newSpaces, s) })
 
 	// Handle action connectors diff
 	var oldConnectors, newConnectors []string
@@ -384,8 +385,8 @@ func (r *quicksightAgentResource) Update(ctx context.Context, req resource.Updat
 	if !config.ActionConnectors.IsNull() {
 		config.ActionConnectors.ElementsAs(ctx, &newConnectors, false)
 	}
-	updateInput.ActionConnectorsToAdd = diff(newConnectors, oldConnectors)
-	updateInput.ActionConnectorsToRemove = diff(oldConnectors, newConnectors)
+	updateInput.ActionConnectorsToAdd = slices.DeleteFunc(newConnectors, func(s string) bool { return slices.Contains(oldConnectors, s) })
+	updateInput.ActionConnectorsToRemove = slices.DeleteFunc(oldConnectors, func(s string) bool { return slices.Contains(newConnectors, s) })
 
 	tflog.Trace(ctx, fmt.Sprintf("UpdateAgent: %s", config.AgentId.ValueString()))
 
@@ -466,45 +467,28 @@ func buildCustomPromptParams(config quicksightAgentResourceModel) *qstypes.Custo
 	return params
 }
 
-// diff returns elements in a that are not in b.
-func diff(a, b []string) []string {
-	bSet := make(map[string]struct{}, len(b))
-	for _, v := range b {
-		bSet[v] = struct{}{}
-	}
-	var result []string
-	for _, v := range a {
-		if _, exists := bSet[v]; !exists {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
 func (r *quicksightAgentResource) waitForAgentActive(ctx context.Context, awsAccountId *string, agentId string) error {
-	for i := 0; i < 15; i++ {
+	err := WaitForCondition(ctx, 30*time.Second, func() (bool, error) {
 		out, err := r.providerData.Quicksight.DescribeAgent(ctx, &quicksight.DescribeAgentInput{
 			AwsAccountId: awsAccountId,
 			AgentId:      aws.String(agentId),
 		})
 		if err != nil {
-			// If API is having issues, just proceed with the update
 			tflog.Warn(ctx, fmt.Sprintf("Failed to check agent status: %s, proceeding anyway", err.Error()))
-			return nil
+			return true, nil
 		}
 		if out.Agent == nil {
-			return nil
-		}
-		if out.Agent.AgentStatus == qstypes.AgentStatusActive {
-			return nil
+			return true, nil
 		}
 		if out.Agent.AgentStatus == qstypes.AgentStatusFailed {
-			return fmt.Errorf("agent %s is in FAILED status", agentId)
+			return false, fmt.Errorf("agent %s is in FAILED status", agentId)
 		}
 		tflog.Debug(ctx, fmt.Sprintf("Waiting for agent %s to become ACTIVE (current: %s)", agentId, out.Agent.AgentStatus))
-		time.Sleep(2 * time.Second)
+		return out.Agent.AgentStatus == qstypes.AgentStatusActive, nil
+	})
+	if _, isTimeout := err.(*TimeoutError); isTimeout {
+		tflog.Warn(ctx, fmt.Sprintf("Timed out waiting for agent %s to become ACTIVE, proceeding", agentId))
+		return nil
 	}
-	// Timeout - proceed anyway
-	tflog.Warn(ctx, fmt.Sprintf("Timed out waiting for agent %s to become ACTIVE, proceeding", agentId))
-	return nil
+	return err
 }
