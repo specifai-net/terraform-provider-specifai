@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -151,6 +152,22 @@ func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, d
 
 	tflog.Debug(ctx, fmt.Sprintf("DeleteDashboard returned: %d", out.Status))
 	return nil
+}
+
+// retryOnConflict retries fn on a 409 ConflictException using exponential backoff, up to 30 seconds.
+func retryOnConflict(ctx context.Context, fn func() error) error {
+	return WaitForCondition(ctx, 30*time.Second, func() (bool, error) {
+		err := fn()
+		if err == nil {
+			return true, nil
+		}
+		var conflictErr *qstypes.ConflictException
+		if errors.As(err, &conflictErr) {
+			tflog.Warn(ctx, fmt.Sprintf("ConflictException, retrying: %s", err.Error()))
+			return false, nil
+		}
+		return false, err
+	})
 }
 
 // WaitForCondition polls fn using exponential backoff until it returns true or the timeout is reached.

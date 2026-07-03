@@ -125,10 +125,12 @@ func (r *quicksightPermissionResource) Create(ctx context.Context, req resource.
 	}
 
 	tflog.Trace(ctx, fmt.Sprintf("Update%sPermissions (Create): %s", r.ops.typeName, m.ResourceId))
-	if err := r.ops.update(ctx, accountId, m.ResourceId,
-		[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
-		nil,
-	); err != nil {
+	if err := retryOnConflict(ctx, func() error {
+		return r.ops.update(ctx, accountId, m.ResourceId,
+			[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
+			nil,
+		)
+	}); err != nil {
 		resp.Diagnostics.AddError("Failed to create permission", err.Error())
 		return
 	}
@@ -191,10 +193,12 @@ func (r *quicksightPermissionResource) Update(ctx context.Context, req resource.
 	}
 
 	tflog.Trace(ctx, fmt.Sprintf("Update%sPermissions (Update): %s", r.ops.typeName, m.ResourceId))
-	if err := r.ops.update(ctx, accountId, m.ResourceId,
-		[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
-		nil,
-	); err != nil {
+	if err := retryOnConflict(ctx, func() error {
+		return r.ops.update(ctx, accountId, m.ResourceId,
+			[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
+			nil,
+		)
+	}); err != nil {
 		resp.Diagnostics.AddError("Failed to update permission", err.Error())
 		return
 	}
@@ -217,10 +221,12 @@ func (r *quicksightPermissionResource) Delete(ctx context.Context, req resource.
 	}
 
 	tflog.Trace(ctx, fmt.Sprintf("Update%sPermissions (Delete): %s", r.ops.typeName, m.ResourceId))
-	if err := r.ops.update(ctx, accountId, m.ResourceId,
-		nil,
-		[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
-	); err != nil {
+	if err := retryOnConflict(ctx, func() error {
+		return r.ops.update(ctx, accountId, m.ResourceId,
+			nil,
+			[]qstypes.ResourcePermission{{Principal: aws.String(m.Principal.ValueString()), Actions: actions}},
+		)
+	}); err != nil {
 		resp.Diagnostics.AddError("Failed to delete permission", err.Error())
 	}
 }
