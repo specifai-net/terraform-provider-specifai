@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -153,23 +154,56 @@ func DeleteDashboard(ctx context.Context, quicksightClient *quicksight.Client, d
 	return nil
 }
 
-func WaitForDashboardCreation(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) (*qstypes.Dashboard, error) {
+// retryOnConflict retries fn on a 409 ConflictException using exponential backoff, up to 30 seconds.
+func retryOnConflict(ctx context.Context, fn func() error) error {
+	return WaitForCondition(ctx, 30*time.Second, func() (bool, error) {
+		err := fn()
+		if err == nil {
+			return true, nil
+		}
+		var conflictErr *qstypes.ConflictException
+		if errors.As(err, &conflictErr) {
+			tflog.Warn(ctx, fmt.Sprintf("ConflictException, retrying: %s", err.Error()))
+			return false, nil
+		}
+		return false, err
+	})
+}
+
+// WaitForCondition polls fn using exponential backoff until it returns true or the timeout is reached.
+// Returns TimeoutError on timeout, or any error returned by fn.
+func WaitForCondition(ctx context.Context, timeout time.Duration, fn func() (bool, error)) error {
 	exp := backoff.NewExponentialBackOff()
 	exp.InitialInterval = 1 * time.Second
 	exp.Reset()
+	for {
+		done, err := fn()
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+		if exp.GetElapsedTime() > timeout {
+			return &TimeoutError{}
+		}
+		time.Sleep(exp.NextBackOff())
+	}
+}
+
+func WaitForDashboardCreation(ctx context.Context, quicksightClient *quicksight.Client, dashboardId *string, awsAccountId *string, versionNumber *int64) (*qstypes.Dashboard, error) {
 	var dashboard *qstypes.Dashboard
-	for dashboard == nil || dashboard.Version.Status == qstypes.ResourceStatusCreationInProgress {
+	err := WaitForCondition(ctx, 15*time.Minute, func() (bool, error) {
 		d, err := GetDashboard(ctx, quicksightClient, dashboardId, awsAccountId, versionNumber)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		tflog.Debug(ctx, fmt.Sprintf("Dashboard %s status is %s", *dashboardId, d.Version.Status))
 		dashboard = d
-		if exp.GetElapsedTime() > 15*time.Minute {
-			return nil, &TimeoutError{}
-		} else {
-			time.Sleep(exp.NextBackOff())
-		}
+		return d.Version.Status != qstypes.ResourceStatusCreationInProgress, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if dashboard.Version.Status != qstypes.ResourceStatusCreationSuccessful && dashboard.Version.Status != qstypes.ResourceStatusCreationFailed {

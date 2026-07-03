@@ -71,8 +71,8 @@ func TestQuicksightTopicPermissionResource_Schema(t *testing.T) {
 
 	// Check actions is a list attribute
 	if actionsAttr, exists := resp.Schema.Attributes["actions"]; exists {
-		if _, ok := actionsAttr.(schema.ListAttribute); !ok {
-			t.Error("actions attribute should be a ListAttribute")
+		if _, ok := actionsAttr.(schema.SetAttribute); !ok {
+			t.Error("actions attribute should be a SetAttribute")
 		}
 	}
 }

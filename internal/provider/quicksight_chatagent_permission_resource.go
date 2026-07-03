@@ -12,30 +12,29 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-type quicksightTopicPermissionResourceModel struct {
-	TopicId      types.String `tfsdk:"topic_id"`
+type quicksightAgentPermissionResourceModel struct {
+	AgentId      types.String `tfsdk:"agent_id"`
 	AwsAccountId types.String `tfsdk:"aws_account_id"`
 	Principal    types.String `tfsdk:"principal"`
 	Actions      types.Set    `tfsdk:"actions"`
 }
 
-func topicPermissionAdapter() permissionAdapter {
-	fromState := func(ctx context.Context, s tfsdk.State) (permissionModel, diag.Diagnostics) {
-		var m quicksightTopicPermissionResourceModel
-		diags := s.Get(ctx, &m)
-		return permissionModel{ResourceId: m.TopicId.ValueString(), AwsAccountId: m.AwsAccountId, Principal: m.Principal, Actions: m.Actions}, diags
-	}
+func agentPermissionAdapter() permissionAdapter {
 	return permissionAdapter{
-		resourceIdAttr: "topic_id",
-		fromState:      fromState,
+		resourceIdAttr: "agent_id",
+		fromState: func(ctx context.Context, s tfsdk.State) (permissionModel, diag.Diagnostics) {
+			var m quicksightAgentPermissionResourceModel
+			diags := s.Get(ctx, &m)
+			return permissionModel{ResourceId: m.AgentId.ValueString(), AwsAccountId: m.AwsAccountId, Principal: m.Principal, Actions: m.Actions}, diags
+		},
 		fromPlan: func(ctx context.Context, p tfsdk.Plan) (permissionModel, diag.Diagnostics) {
-			var m quicksightTopicPermissionResourceModel
+			var m quicksightAgentPermissionResourceModel
 			diags := p.Get(ctx, &m)
-			return permissionModel{ResourceId: m.TopicId.ValueString(), AwsAccountId: m.AwsAccountId, Principal: m.Principal, Actions: m.Actions}, diags
+			return permissionModel{ResourceId: m.AgentId.ValueString(), AwsAccountId: m.AwsAccountId, Principal: m.Principal, Actions: m.Actions}, diags
 		},
 		toState: func(ctx context.Context, pm permissionModel, s *tfsdk.State) diag.Diagnostics {
-			return s.Set(ctx, quicksightTopicPermissionResourceModel{
-				TopicId:      types.StringValue(pm.ResourceId),
+			return s.Set(ctx, quicksightAgentPermissionResourceModel{
+				AgentId:      types.StringValue(pm.ResourceId),
 				AwsAccountId: pm.AwsAccountId,
 				Principal:    pm.Principal,
 				Actions:      pm.Actions,
@@ -44,17 +43,17 @@ func topicPermissionAdapter() permissionAdapter {
 	}
 }
 
-func NewQuicksightTopicPermissionResource() resource.Resource {
+func NewQuicksightAgentPermissionResource() resource.Resource {
 	return &quicksightPermissionResource{
-		tfTypeSuffix: "topic_permission",
-		adapter:      topicPermissionAdapter(),
+		tfTypeSuffix: "chatagent_permission",
+		adapter:      agentPermissionAdapter(),
 		opsFactory: func(data *specifaiProviderData) permissionOps {
 			return permissionOps{
-				typeName: "Topic",
+				typeName: "Agent",
 				describe: func(ctx context.Context, accountId, id string) ([]qstypes.ResourcePermission, error) {
-					out, err := data.Quicksight.DescribeTopicPermissions(ctx, &quicksight.DescribeTopicPermissionsInput{
+					out, err := data.Quicksight.DescribeAgentPermissions(ctx, &quicksight.DescribeAgentPermissionsInput{
 						AwsAccountId: aws.String(accountId),
-						TopicId:      aws.String(id),
+						AgentId:      aws.String(id),
 					})
 					if err != nil {
 						return nil, err
@@ -62,9 +61,9 @@ func NewQuicksightTopicPermissionResource() resource.Resource {
 					return out.Permissions, nil
 				},
 				update: func(ctx context.Context, accountId, id string, grant, revoke []qstypes.ResourcePermission) error {
-					_, err := data.Quicksight.UpdateTopicPermissions(ctx, &quicksight.UpdateTopicPermissionsInput{
+					_, err := data.Quicksight.UpdateAgentPermissions(ctx, &quicksight.UpdateAgentPermissionsInput{
 						AwsAccountId:      aws.String(accountId),
-						TopicId:           aws.String(id),
+						AgentId:           aws.String(id),
 						GrantPermissions:  grant,
 						RevokePermissions: revoke,
 					})
